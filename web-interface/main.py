@@ -4,7 +4,6 @@ import cups
 import os
 import logging
 # Загружаем переменные из .env
-load_dotenv()
 from dotenv import load_dotenv
 from datetime import datetime
 
