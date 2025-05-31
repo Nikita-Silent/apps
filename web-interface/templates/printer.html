@@ -1,31 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Printer Details</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .details { margin-top: 20px; }
-        .details p { margin: 5px 0; }
-        a { margin-right: 10px; }
-        .error { color: red; }
-        strong { display: inline-block; width: 120px; }
-    </style>
+    <title>Printer/Class Details</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 <body>
-    <h1>Printer Details</h1>
-    <a href="/">Back to Printers</a>
-    {% if error %}
-        <p class="error">{{ error }}</p>
-    {% else %}
-        <div class="details">
-            <p><strong>Description:</strong> {{ printer.description }}</p>
-            <p><strong>Location:</strong> {{ printer.location }}</p>
-            <p><strong>Driver:</strong> {{ printer.driver }}</p>
-            <p><strong>Connection:</strong> {{ printer.connection }}</p>
-            <p><strong>Defaults:</strong> {{ printer.defaults }}</p>
-        </div>
-    {% endif %}
+    <div class="container mt-5">
+        <h1>{{ printer.type | capitalize }} Details</h1>
+        <a href="/" class="btn btn-primary mb-3">Back to List</a>
+        <a href="/modify-printer/{{ printer.name }}" class="btn btn-info mb-3">Modify</a>
+        <a href="/logout" class="btn btn-secondary mb-3">Logout</a>
+        {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+        {% else %}
+            <table class="table table-bordered">
+                <tr><th>Name</th><td>{{ printer.name }}</td></tr>
+                <tr><th>Type</th><td>{{ printer.type | capitalize }}</td></tr>
+                <tr><th>Description</th><td>{{ printer.description }}</td></tr>
+                <tr><th>Location</th><td>{{ printer.location }}</td></tr>
+                {% if printer.type == "printer" %}
+                    <tr><th>Driver</th><td>{{ printer.driver }}</td></tr>
+                    <tr><th>Connection</th><td>{{ printer.connection }}</td></tr>
+                    <tr><th>Defaults</th><td>{{ printer.defaults }}</td></tr>
+                {% else %}
+                    <tr><th>Members</th><td>{{ printer.members | join(", ") or "None" }}</td></tr>
+                {% endif %}
+            </table>
+        {% endif %}
+    </div>
 </body>
 </html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Modify Printer/Class</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Modify {{ printer.type | capitalize if printer else "Object" }}</h1>
+        <a href="/" class="btn btn-primary mb-3">Back to List</a>
+        <a href="/logout" class="btn btn-secondary mb-3">Logout</a>
+        {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+        {% elif not printer %}
+            <div class="alert alert-danger">No printer/class data available</div>
+        {% else %}
+            <form id="modifyForm" method="POST">
+                <input type="hidden" name="is_class" value="{{ 'true' if printer.type == 'class' else 'false' }}">
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" class="form-control" id="name" name="name" value="{{ printer.name }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <input type="text" class="form-control" id="description" name="description" value="{{ printer.description }}">
+                </div>
+                <div class="form-group">
+                    <label for="location">Location</label>
+                    <input type="text" class="form-control" id="location" name="location" value="{{ printer.location }}">
+                </div>
+                {% if printer.type == "printer" %}
+                    <div id="printerFields">
+                        <div class="form-group">
+                            <label for="protocol">Protocol</label>
+                            <select class="form-control" id="protocol" name="protocol">
+                                <option value="ipp" {{ 'selected' if printer.connection.startswith('ipp://') else '' }}>IPP</option>
+                                <option value="ipps" {{ 'selected' if printer.connection.startswith('ipps://') else '' }}>IPPS</option>
+                                <option value="http" {{ 'selected' if printer.connection.startswith('http://') else '' }}>HTTP</option>
+                                <option value="https" {{ 'selected' if printer.connection.startswith('https://') else '' }}>HTTPS</option>
+                                <option value="socket" {{ 'selected' if printer.connection.startswith('socket://') else '' }}>Socket</option>
+                                <option value="lpd" {{ 'selected' if printer.connection.startswith('lpd://') else '' }}>LPD</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="address">Address</label>
+                            <input type="text" class="form-control" id="address" name="address" value="{{ printer.connection | replace('ipp://', '') | replace('ipps://', '') | replace('http://', '') | replace('https://', '') | replace('socket://', '') | replace('lpd://', '') }}">
+                        </div>
+                    </div>
+                {% else %}
+                    <div id="classFields">
+                        <div class="form-group">
+                            <label for="members">Class Members</label>
+                            <select multiple class="form-control" id="members" name="members">
+                                {% for p in printers %}
+                                    <option value="{{ p }}" {{ 'selected' if p in printer.members else '' }}>{{ p }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                {% endif %}
+                <button type="submit" class="btn btn-success">Save Changes</button>
+            </form>
+        {% endif %}
+    </div>
+    <script>
+        $(document).ready(function() {
+            $('#modifyForm').submit(function(e) {
+                e.preventDefault();
+                $.ajax({
+                    url: '/modify-printer/{{ printer.name }}',
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    success: function(data) {
+                        alert(data.message);
+                        window.location.href = '/';
+                    },
+                    error: function(xhr) {
+                        alert(xhr.responseJSON.error);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

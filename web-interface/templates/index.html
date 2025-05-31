@@ -1,89 +1,72 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CUPS Printer Management</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        button { margin-right: 5px; }
-        .form-container { margin-bottom: 20px; }
-        a { margin-right: 10px; }
-    </style>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 </head>
 <body>
-    <h1>CUPS Printer Management</h1>
-    <a href="/add-printer">Add Printer</a>
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>URI (Printer IP)</th>
-                <th>State</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for printer in printers %}
-            <tr>
-                <td><a href="{{ url_for('printer_detail', name=printer.name) }}">{{ printer.name }}</a></td>
-                <td>{{ printer.uri }}</td>
-                <td>{{ printer.state }}</td>
-                <td>
-                    <button onclick="pausePrinter('{{ printer.name }}')">Pause</button>
-                    <button onclick="resumePrinter('{{ printer.name }}')">Resume</button>
-                    <button onclick="deletePrinter('{{ printer.name }}')">Delete</button>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
+    <div class="container mt-5">
+        <h1>CUPS Printer Management</h1>
+        <a href="/add-printer" class="btn btn-primary mb-3">Add Printer/Class</a>
+        <a href="/logout" class="btn btn-secondary mb-3">Logout</a>
+        {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>URI</th>
+                    <th>State</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for printer in printers %}
+                    <tr>
+                        <td><a href="/printer-detail/{{ printer.name }}">{{ printer.name }}</a></td>
+                        <td>{{ printer.type | capitalize }}</td>
+                        <td>{{ printer.uri }}</td>
+                        <td>{{ printer.state }}</td>
+                        <td>
+                            <a href="/modify-printer/{{ printer.name }}" class="btn btn-info btn-sm">Modify</a>
+                            <button class="btn btn-warning btn-sm pause-btn" data-name="{{ printer.name }}">Pause</button>
+                            <button class="btn btn-success btn-sm resume-btn" data-name="{{ printer.name }}">Resume</button>
+                            <button class="btn btn-danger btn-sm delete-btn" data-name="{{ printer.name }}">Delete</button>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     <script>
-        async function pausePrinter(name) {
-            if (!confirm(`Are you sure you want to pause ${name}?`)) return;
-            try {
-                const response = await fetch(`/printers/${name}/pause`, { method: 'POST' });
-                const result = await response.json();
-                alert(result.message || result.error);
-                if (response.ok) {
-                    window.location.reload();
+        $(document).ready(function() {
+            $('.pause-btn').click(function() {
+                var name = $(this).data('name');
+                $.post('/printers/' + name + '/pause', function(data) {
+                    alert(data.message || data.error);
+                    location.reload();
+                });
+            });
+            $('.resume-btn').click(function() {
+                var name = $(this).data('name');
+                $.post('/printers/' + name + '/resume', function(data) {
+                    alert(data.message || data.error);
+                    location.reload();
+                });
+            });
+            $('.delete-btn').click(function() {
+                var name = $(this).data('name');
+                if (confirm('Are you sure you want to delete ' + name + '?')) {
+                    $.post('/printers/' + name + '/delete', function(data) {
+                        alert(data.message || data.error);
+                        location.reload();
+                    });
                 }
-            } catch (error) {
-                alert('Failed to pause printer');
-            }
-        }
-
-        async function resumePrinter(name) {
-            if (!confirm(`Are you sure you want to resume ${name}?`)) return;
-            try {
-                const response = await fetch(`/printers/${name}/resume`, { method: 'POST' });
-                const result = await response.json();
-                alert(result.message || result.error);
-                if (response.ok) {
-                    window.location.reload();
-                }
-            } catch (error) {
-                alert('Failed to resume printer');
-            }
-        }
-
-        async function deletePrinter(name) {
-            if (!confirm(`Are you sure you want to delete ${name}?`)) return;
-            try {
-                const response = await fetch(`/printers/${name}/delete`, { method: 'POST' });
-                const result = await response.json();
-                alert(result.message || result.error);
-                if (response.ok) {
-                    window.location.reload();
-                }
-            } catch (error) {
-                alert('Failed to delete printer');
-            }
-        }
+            });
+        });
     </script>
 </body>
 </html>
