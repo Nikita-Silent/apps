@@ -3,6 +3,10 @@ from flask_session import Session
 import cups
 import os
 import logging
+from dotenv import load_dotenv
+
+# Загружаем переменные из .env
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -27,7 +31,7 @@ def get_connection(username, password):
         cups.setPasswordCB(password_cb)
         cups.setUser(username)  # Устанавливаем имя пользователя
         conn = cups.Connection(host=CUPS_SERVER, port=CUPS_PORT)
-        logger.info(f"Connected to CUPS server as {username}")
+        logger.info(f"Connected to CUPS server at {CUPS_SERVER}:{CUPS_PORT} as {username}")
         return conn
     except Exception as e:
         logger.error(f"Failed to connect to CUPS: {e}")
