@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUPS Printer Management</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        button { margin-right: 5px; }
+        .form-container { margin-bottom: 20px; }
+        a { margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <h1>CUPS Printer Management</h1>
+    <a href="/add-printer">Add Printer</a>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>URI (Printer IP)</th>
+                <th>State</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for printer in printers %}
+            <tr>
+                <td><a href="{{ url_for('printer_detail', name=printer.name) }}">{{ printer.name }}</a></td>
+                <td>{{ printer.uri }}</td>
+                <td>{{ printer.state }}</td>
+                <td>
+                    <button onclick="pausePrinter('{{ printer.name }}')">Pause</button>
+                    <button onclick="resumePrinter('{{ printer.name }}')">Resume</button>
+                    <button onclick="deletePrinter('{{ printer.name }}')">Delete</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        async function pausePrinter(name) {
+            if (!confirm(`Are you sure you want to pause ${name}?`)) return;
+            try {
+                const response = await fetch(`/printers/${name}/pause`, { method: 'POST' });
+                const result = await response.json();
+                alert(result.message || result.error);
+                if (response.ok) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                alert('Failed to pause printer');
+            }
+        }
+
+        async function resumePrinter(name) {
+            if (!confirm(`Are you sure you want to resume ${name}?`)) return;
+            try {
+                const response = await fetch(`/printers/${name}/resume`, { method: 'POST' });
+                const result = await response.json();
+                alert(result.message || result.error);
+                if (response.ok) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                alert('Failed to resume printer');
+            }
+        }
+
+        async function deletePrinter(name) {
+            if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+            try {
+                const response = await fetch(`/printers/${name}/delete`, { method: 'POST' });
+                const result = await response.json();
+                alert(result.message || result.error);
+                if (response.ok) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                alert('Failed to delete printer');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Printer Details</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .details { margin-top: 20px; }
+        .details p { margin: 5px 0; }
+        a { margin-right: 10px; }
+        .error { color: red; }
+        strong { display: inline-block; width: 120px; }
+    </style>
+</head>
+<body>
+    <h1>Printer Details</h1>
+    <a href="/">Back to Printers</a>
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% else %}
+        <div class="details">
+            <p><strong>Description:</strong> {{ printer.description }}</p>
+            <p><strong>Location:</strong> {{ printer.location }}</p>
+            <p><strong>Driver:</strong> {{ printer.driver }}</p>
+            <p><strong>Connection:</strong> {{ printer.connection }}</p>
+            <p><strong>Defaults:</strong> {{ printer.defaults }}</p>
+        </div>
+    {% endif %}
+</body>
+</html>

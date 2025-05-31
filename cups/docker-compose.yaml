@@ -1,0 +1,24 @@
+services:
+  cups:
+    build:
+      context: .
+      args:
+        CUPS_ADMIN_USER: ${CUPS_ADMIN_USER}
+        CUPS_ADMIN_PASSWORD: ${CUPS_ADMIN_PASSWORD}
+    container_name: cups
+    networks:
+      - cups-net
+    ports:
+      - "631:631"
+    volumes:
+      - cups_logs:/var/log/cups
+      - cups_config:/etc/cups
+    restart: unless-stopped
+
+networks:
+  cups-net:
+    driver: bridge
+
+volumes:
+  cups_logs:
+  cups_config:
