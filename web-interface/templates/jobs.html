@@ -1,51 +1,37 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Print Jobs</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-    <nav class="navbar">
-        <div class="navbar-brand">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M6 18H4C2.89543 18 2 17.1046 2 16V11C2 9.89543 2.89543 9 4 9H20C21.1046 9 22 9.89543 22 11V16C22 17.1046 21.1046 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M18 22H6V18H18V22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            CUPS Admin
-        </div>
-        <div class="nav-links">
-            <a href="/">Dashboard</a>
-            <a href="/">Printers</a>
-            <a href="/jobs">Jobs</a>
-            <a href="#">Administration</a>
-            <a href="/logout">Logout</a>
-        </div>
-    </nav>
-    <div class="container">
-        {% if error %}
-            <div class="alert alert-danger">{{ error }}</div>
-        {% endif %}
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">Recent Print Jobs</h2>
+{% extends "base.html" %}
+{% block title %}Print Jobs{% endblock %}
+{% block content %}
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Print Jobs</h2>
+            <div class="form-group">
+                <label class="form-label" for="job-filter">Filter</label>
+                <select class="form-control" id="job-filter">
+                    <option value="all" {% if filter == 'all' %}selected{% endif %}>All Jobs</option>
+                    <option value="active" {% if filter == 'active' %}selected{% endif %}>Active Jobs</option>
+                    <option value="completed" {% if filter == 'completed' %}selected{% endif %}>Completed Jobs</option>
+                </select>
             </div>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Document</th>
-                        <th>Printer</th>
-                        <th>User</th>
-                        <th>Status</th>
-                        <th>Size (KB)</th>
-                        <th>Submitted</th>
-                    </tr>
-                </thead>
-                <tbody>
+        </div>
+        <table class="table" id="jobs-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Document</th>
+                    <th>Printer</th>
+                    <th>User</th>
+                    <th>Status</th>
+                    <th>Size (KB)</th>
+                    <th>Submitted</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not jobs %}
+                    <tr><td colspan="7">No jobs found</td></tr>
+                {% else %}
                     {% for job in jobs %}
                         <tr>
                             <td>#{{ job.id }}</td>
@@ -57,9 +43,28 @@
                             <td>{{ job.time }}</td>
                         </tr>
                     {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                {% endif %}
+            </tbody>
+        </table>
+        {% if jobs|length > 50 %}
+            <div class="pagination">
+                <p>Showing first 50 jobs. Contact admin for full list.</p>
+            </div>
+        {% endif %}
     </div>
-</body>
-</html>
+{% endblock %}
+{% block scripts %}
+    <script>
+        $(document).ready(function() {
+            $('#job-filter').change(function() {
+                var filter = $(this).val();
+                $.get('/jobs?filter=' + filter, function(data) {
+                    var jobs = $(data).find('#jobs-table tbody').html();
+                    $('#jobs-table tbody').html(jobs);
+                }).fail(function() {
+                    alert('Error loading jobs');
+                });
+            });
+        });
+    </script>
+{% endblock %}

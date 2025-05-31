@@ -1,70 +1,51 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Printer/Class Details</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-</head>
-<body>
-    <nav class="navbar">
-        <div class="navbar-brand">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M6 18H4C2.89543 18 2 17.1046 2 16V11C2 9.89543 2.89543 9 4 9H20C21.1046 9 22 9.89543 22 11V16C22 17.1046 21.1046 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M18 22H6V18H18V22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            CUPS Admin
-        </div>
-        <div class="nav-links">
-            <a href="/">Dashboard</a>
-            <a href="/">Printers</a>
-            <a href="/jobs">Jobs</a>
-            <a href="#">Administration</a>
-            <a href="/logout">Logout</a>
-        </div>
-    </nav>
-    <div class="container">
-        {% if error %}
-            <div class="alert alert-danger">{{ error }}</div>
-        {% else %}
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="card-title">{{ printer.type | capitalize }}: {{ printer.name }}</h2>
-                    <div>
-                        <a href="/modify-printer/{{ printer.name }}" class="btn btn-info">Modify</a>
-                        <button class="btn btn-warning pause-btn" data-name="{{ printer.name }}">Pause</button>
-                        <button class="btn btn-success resume-btn" data-name="{{ printer.name }}">Resume</button>
-                        <button class="btn btn-danger delete-btn" data-name="{{ printer.name }}">Delete</button>
-                        <a href="/" class="btn btn-primary">Back to List</a>
-                    </div>
+{% extends "base.html" %}
+{% block title %}Printer/Class Details{% endblock %}
+{% block content %}
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% else %}
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">{{ printer.type | capitalize }}: {{ printer.name }}</h2>
+                <div>
+                    <a href="/modify-printer/{{ printer.name }}" class="btn btn-info">Modify</a>
+                    <button class="btn btn-warning pause-btn" data-name="{{ printer.name }}">Pause</button>
+                    <button class="btn btn-success resume-btn" data-name="{{ printer.name }}">Resume</button>
+                    <button class="btn btn-danger delete-btn" data-name="{{ printer.name }}">Delete</button>
+                    <a href="/printers" class="btn btn-primary">Back to List</a>
                 </div>
-                <table class="table">
-                    <tr><th>Name</th><td>{{ printer.name }}</td></tr>
-                    <tr><th>Type</th><td>{{ printer.type | capitalize }}</td></tr>
-                    <tr><th>Description</th><td>{{ printer.description }}</td></tr>
-                    <tr><th>Location</th><td>{{ printer.location }}</td></tr>
-                    {% if printer.type == "printer" %}
-                        <tr><th>Driver</th><td>{{ printer.driver }}</td></tr>
-                        <tr><th>Connection</th><td>{{ printer.connection }}</td></tr>
-                        <tr><th>Defaults</th><td>{{ printer.defaults }}</td></tr>
-                    {% else %}
-                        <tr><th>Members</th><td>{{ printer.members | join(", ") or "None" }}</td></tr>
-                    {% endif %}
-                    <tr><th>Status</th>
-                        <td>
-                            <div class="printer-status">
-                                <span class="status-indicator {{ 'status-idle' if printer.state.lower() == 'idle' else 'status-printing' if 'printing' in printer.state.lower() else 'status-error' }}"></span>
-                                <span>{{ printer.state or 'Unknown' }}</span>
-                            </div>
-                        </td>
-                    </tr>
-                </table>
             </div>
-        {% endif %}
-    </div>
+            <table class="table">
+                <tr><th>Name</th><td>{{ printer.name }}</td></tr>
+                <tr><th>Type</th><td>{{ printer.type | capitalize }}</td></tr>
+                <tr><th>Description</th><td>{{ printer.description }}</td></tr>
+                <tr><th>Location</th><td>{{ printer.location }}</td></tr>
+                {% if printer.type == "printer" %}
+                    <tr><th>Driver</th><td>{{ printer.driver }}</td></tr>
+                    <tr><th>Connection</th><td>{{ printer.connection }}</td></tr>
+                    <tr><th>Defaults</th><td>{{ printer.defaults }}</td></tr>
+                {% else %}
+                    <tr><th>Members</th><td>{{ printer.members | join(", ") or "None" }}</td></tr>
+                {% endif %}
+                <tr><th>Status</th>
+                    <td>
+                        <div class="printer-status">
+                            <span class="status-indicator {{ 'status-idle' if printer.state.lower() == 'idle' else 'status-printing' if 'printing' in printer.state.lower() else 'status-error' }}"></span>
+                            <span>{{ printer.state or 'Unknown' }}</span>
+                        </div>
+                    </td>
+                </tr>
+                <tr><th>Health</th>
+                    <td>
+                        <span class="badge {{ printer.health.badge }}">{{ printer.health.status }}</span>
+                        <span>({{ printer.health.details }})</span>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}
+{% block scripts %}
     <script>
         $(document).ready(function() {
             $('.pause-btn').click(function() {
@@ -86,11 +67,10 @@
                 if (confirm('Are you sure you want to delete ' + name + '?')) {
                     $.post('/printers/' + name + '/delete', function(data) {
                         alert(data.message || data.error);
-                        window.location.href = '/';
+                        window.location.href = '/printers';
                     });
                 }
             });
         });
     </script>
-</body>
-</html>
+{% endblock %}

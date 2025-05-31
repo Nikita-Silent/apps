@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}CUPS Dashboard{% endblock %}
+{% block content %}
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value">{{ printer_count }}</div>
+            <div class="stat-label">Printers/Classes</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{{ server_ip }}</div>
+            <div class="stat-label">CUPS Server IP</div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Recent Completed Jobs</h2>
+        </div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Document</th>
+                    <th>Printer</th>
+                    <th>User</th>
+                    <th>Status</th>
+                    <th>Size (KB)</th>
+                    <th>Submitted</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not completed_jobs %}
+                    <tr><td colspan="7">No completed jobs found</td></tr>
+                {% else %}
+                    {% for job in completed_jobs %}
+                        <tr>
+                            <td>#{{ job.id }}</td>
+                            <td>{{ job.name }}</td>
+                            <td>{{ job.printer }}</td>
+                            <td>{{ job.user }}</td>
+                            <td><span class="badge {{ job.badge_class }}">{{ job.state }}</span></td>
+                            <td>{{ job.size }}</td>
+                            <td>{{ job.time }}</td>
+                        </tr>
+                    {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

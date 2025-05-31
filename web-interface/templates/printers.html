@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}CUPS Printers{% endblock %}
+{% block content %}
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Printers and Classes</h2>
+            <a href="/add-printer" class="btn btn-primary">Add Printer/Class</a>
+        </div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Health</th>
+                    <th>URI</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for printer in printers %}
+                    <tr>
+                        <td><a href="/printer-detail/{{ printer.name }}">{{ printer.name }}</a></td>
+                        <td>{{ printer.type | capitalize }}</td>
+                        <td>
+                            <div class="printer-status">
+                                <span class="status-indicator {{ 'status-idle' if printer.state.lower() == 'idle' else 'status-printing' if 'printing' in printer.state.lower() else 'status-error' }}"></span>
+                                <span>{{ printer.state or 'Unknown' }}</span>
+                            </div>
+                        </td>
+                        <td><span class="badge {{ printer.health.badge }}">{{ printer.health.status }}</span></td>
+                        <td>{{ printer.uri }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
