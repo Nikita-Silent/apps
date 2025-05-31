@@ -5,9 +5,9 @@
         <div class="alert alert-danger">{{ error }}</div>
     {% endif %}
     <div class="card">
-        <div class="card-header">
-            <h2 class="card-title">Print Jobs</h2>
-            <div class="form-group">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+            <h2 class="card-title mb-0">Print Jobs</h2>
+            <div class="form-group ms-auto" style="min-width: 150px;">
                 <label class="form-label" for="job-filter">Filter</label>
                 <select class="form-control" id="job-filter">
                     <option value="all" {% if filter == 'all' %}selected{% endif %}>All Jobs</option>
@@ -16,38 +16,40 @@
                 </select>
             </div>
         </div>
-        <table class="table" id="jobs-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Document</th>
-                    <th>Printer</th>
-                    <th>User</th>
-                    <th>Status</th>
-                    <th>Size (KB)</th>
-                    <th>Submitted</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if not jobs %}
-                    <tr><td colspan="7">No jobs found</td></tr>
-                {% else %}
-                    {% for job in jobs %}
-                        <tr>
-                            <td>#{{ job.id }}</td>
-                            <td>{{ job.name }}</td>
-                            <td>{{ job.printer }}</td>
-                            <td>{{ job.user }}</td>
-                            <td><span class="badge {{ job.badge_class }}">{{ job.state }}</span></td>
-                            <td>{{ job.size }}</td>
-                            <td>{{ job.time }}</td>
-                        </tr>
-                    {% endfor %}
-                {% endif %}
-            </tbody>
-        </table>
-        {% if jobs|length > 50 %}
-            <div class="pagination">
+        <div class="table-responsive">
+            <table class="table table-striped" id="jobs-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Document</th>
+                        <th>Printer</th>
+                        <th>User</th>
+                        <th>Status</th>
+                        <th>Size (KB)</th>
+                        <th>Submitted</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if not jobs %}
+                        <tr><td colspan="7" class="text-center">No jobs found</td></tr>
+                    {% else %}
+                        {% for job in jobs %}
+                            <tr>
+                                <td>#{{ job.id }}</td>
+                                <td>{{ job.name }}</td>
+                                <td>{{ job.printer }}</td>
+                                <td>{{ job.user }}</td>
+                                <td><span class="badge {{ job.badge_class }}">{{ job.state }}</span></td>
+                                <td>{{ job.size }}</td>
+                                <td>{{ job.time }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        {% if jobs|length >= 50 %}
+            <div class="pagination text-center mt-3">
                 <p>Showing first 50 jobs. Contact admin for full list.</p>
             </div>
         {% endif %}

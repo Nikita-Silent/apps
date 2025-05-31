@@ -114,17 +114,26 @@ def login_required(f):
 def dashboard():
     conn = get_connection(session['username'], session['password'])
     if not conn:
-        return render_template("dashboard.html", error="Cannot connect to CUPS server", printer_count=0, completed_jobs=[], server_ip=CUPS_SERVER)
+        return render_template("dashboard.html", error="Cannot connect to CUPS server", printer_count=0, active_printers=0, error_printers=0, completed_jobs=[], server_ip=CUPS_SERVER)
     
     try:
         # Количество принтеров/классов
         printers = conn.getPrinters()
         printer_count = len(printers)
+        active_printers = 0
+        error_printers = 0
+        for attrs in printers.values():
+            health = get_printer_health(attrs)
+            if health["status"] == "Active":
+                active_printers += 1
+            elif health["status"] == "Error":
+                error_printers += 1
         
         # Завершённые задания
         requested_attributes = [
             "job-id", "job-name", "job-printer-name", "job-originating-user-name",
-            "job-state", "job-k-octets", "time-at-creation"
+            "job-state", "job-k-octets", "time-at-creation", "job-printer-uri",
+            "destination"
         ]
         jobs = conn.getJobs(which_jobs="all", requested_attributes=requested_attributes)
         logger.debug(f"Dashboard raw jobs: {jobs}")
@@ -142,10 +151,19 @@ def dashboard():
             logger.debug(f"Dashboard job {job_id} attributes: {attrs}")
             if attrs.get("job-state", 0) == 9:  # Completed
                 state_text, badge_class = job_states.get(9)
+                # Извлекаем имя принтера из job-printer-uri или destination
+                printer_name = attrs.get("job-printer-name", "Unknown")
+                if printer_name == "Unknown" and attrs.get("job-printer-uri"):
+                    uri_parts = attrs.get("job-printer-uri", "").split("/")
+                    if len(uri_parts) > 3:
+                        printer_name = uri_parts[-1] or "Unknown"
+                elif printer_name == "Unknown" and attrs.get("destination"):
+                    printer_name = attrs.get("destination", "Unknown")
+                
                 completed_jobs.append({
                     "id": job_id,
                     "name": attrs.get("job-name", f"Job {job_id}"),
-                    "printer": attrs.get("job-printer-name", "Unknown"),
+                    "printer": printer_name,
                     "user": attrs.get("job-originating-user-name", "Unknown"),
                     "state": state_text,
                     "badge_class": badge_class,
@@ -156,11 +174,11 @@ def dashboard():
                 })
         completed_jobs = sorted(completed_jobs, key=lambda x: x["id"], reverse=True)[:10]  # Последние 10
         
-        logger.info(f"Dashboard loaded: {printer_count} printers, {len(completed_jobs)} completed jobs")
-        return render_template("dashboard.html", printer_count=printer_count, completed_jobs=completed_jobs, server_ip=CUPS_SERVER)
+        logger.info(f"Dashboard loaded: {printer_count} printers, {active_printers} active, {error_printers} error, {len(completed_jobs)} completed jobs")
+        return render_template("dashboard.html", printer_count=printer_count, active_printers=active_printers, error_printers=error_printers, completed_jobs=completed_jobs, server_ip=CUPS_SERVER)
     except Exception as e:
         logger.error(f"Error loading dashboard: {e}")
-        return render_template("dashboard.html", error=str(e), printer_count=0, completed_jobs=[], server_ip=CUPS_SERVER)
+        return render_template("dashboard.html", error=str(e), printer_count=0, active_printers=0, error_printers=0, completed_jobs=[], server_ip=CUPS_SERVER)
 
 @app.route("/printers")
 @login_required
@@ -200,7 +218,8 @@ def jobs():
         filter_type = request.args.get("filter", "all")
         requested_attributes = [
             "job-id", "job-name", "job-printer-name", "job-originating-user-name",
-            "job-state", "job-k-octets", "time-at-creation"
+            "job-state", "job-k-octets", "time-at-creation", "job-printer-uri",
+            "destination"
         ]
         jobs = conn.getJobs(which_jobs="all", requested_attributes=requested_attributes)
         logger.debug(f"Raw jobs: {jobs}")
@@ -223,10 +242,19 @@ def jobs():
             if filter_type == "completed" and state != 9:
                 continue
             state_text, badge_class = job_states.get(state, ("Unknown", "badge-danger"))
+            # Извлекаем имя принтера из job-printer-uri или destination
+            printer_name = attrs.get("job-printer-name", "Unknown")
+            if printer_name == "Unknown" and attrs.get("job-printer-uri"):
+                uri_parts = attrs.get("job-printer-uri", "").split("/")
+                if len(uri_parts) > 3:
+                    printer_name = uri_parts[-1] or "Unknown"
+            elif printer_name == "Unknown" and attrs.get("destination"):
+                printer_name = attrs.get("destination", "Unknown")
+            
             job_list.append({
                 "id": job_id,
                 "name": attrs.get("job-name", f"Job {job_id}"),
-                "printer": attrs.get("job-printer-name", "Unknown"),
+                "printer": printer_name,
                 "user": attrs.get("job-originating-user-name", "Unknown"),
                 "state": state_text,
                 "badge_class": badge_class,
@@ -235,7 +263,7 @@ def jobs():
                     attrs.get("time-at-creation", 0)
                 ).strftime("%Y-%m-%d %H:%M:%S") if attrs.get("time-at-creation", 0) > 0 else "Unknown"
             })
-        job_list = sorted(job_list, key=lambda x: x["id"], reverse=True)
+        job_list = sorted(job_list, key=lambda x: x["id"], reverse=True)[:50]  # Ограничим 50 заданиями
         logger.info(f"Retrieved {len(job_list)} print jobs (filter: {filter_type})")
         return render_template("jobs.html", jobs=job_list, filter=filter_type)
     except Exception as e:

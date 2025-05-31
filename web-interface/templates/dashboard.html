@@ -4,49 +4,67 @@
     {% if error %}
         <div class="alert alert-danger">{{ error }}</div>
     {% endif %}
-    <div class="stats">
-        <div class="stat">
-            <div class="stat-value">{{ printer_count }}</div>
-            <div class="stat-label">Printers/Classes</div>
+    <div class="stats row row-cols-1 row-cols-md-3 g-4 mb-4">
+        <div class="col">
+            <div class="stat card h-100">
+                <div class="stat-value card-body">{{ printer_count }}</div>
+                <div class="stat-label card-footer">Total Printers/Classes</div>
+            </div>
         </div>
-        <div class="stat">
-            <div class="stat-value">{{ server_ip }}</div>
-            <div class="stat-label">CUPS Server IP</div>
+        <div class="col">
+            <div class="stat card h-100">
+                <div class="stat-value card-body">{{ active_printers }}</div>
+                <div class="stat-label card-footer">Active Printers</div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="stat card h-100">
+                <div class="stat-value card-body">{{ error_printers }}</div>
+                <div class="stat-label card-footer">Printers in Error</div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="stat card h-100">
+                <div class="stat-value card-body">{{ server_ip }}</div>
+                <div class="stat-label card-footer">CUPS Server IP</div>
+            </div>
         </div>
     </div>
     <div class="card">
         <div class="card-header">
             <h2 class="card-title">Recent Completed Jobs</h2>
         </div>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Document</th>
-                    <th>Printer</th>
-                    <th>User</th>
-                    <th>Status</th>
-                    <th>Size (KB)</th>
-                    <th>Submitted</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if not completed_jobs %}
-                    <tr><td colspan="7">No completed jobs found</td></tr>
-                {% else %}
-                    {% for job in completed_jobs %}
-                        <tr>
-                            <td>#{{ job.id }}</td>
-                            <td>{{ job.name }}</td>
-                            <td>{{ job.printer }}</td>
-                            <td>{{ job.user }}</td>
-                            <td><span class="badge {{ job.badge_class }}">{{ job.state }}</span></td>
-                            <td>{{ job.size }}</td>
-                            <td>{{ job.time }}</td>
-                        </tr>
-                    {% endfor %}
-                {% endif %}
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Document</th>
+                        <th>Printer</th>
+                        <th>User</th>
+                        <th>Status</th>
+                        <th>Size (KB)</th>
+                        <th>Submitted</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if not completed_jobs %}
+                        <tr><td colspan="7" class="text-center">No completed jobs found</td></tr>
+                    {% else %}
+                        {% for job in completed_jobs %}
+                            <tr>
+                                <td>#{{ job.id }}</td>
+                                <td>{{ job.name }}</td>
+                                <td>{{ job.printer }}</td>
+                                <td>{{ job.user }}</td>
+                                <td><span class="badge {{ job.badge_class }}">{{ job.state }}</span></td>
+                                <td>{{ job.size }}</td>
+                                <td>{{ job.time }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
     </div>
 {% endblock %}
