@@ -3,7 +3,10 @@ from flask_session import Session
 import cups
 import os
 import logging
+# Загружаем переменные из .env
+load_dotenv()
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Загружаем переменные из .env
 load_dotenv()
@@ -107,6 +110,44 @@ def index():
         logger.error(f"Error getting printers: {e}")
         return render_template("index.html", printers=[], error=str(e))
 
+@app.route("/jobs")
+@login_required
+def jobs():
+    conn = get_connection(session['username'], session['password'])
+    if not conn:
+        return render_template("jobs.html", jobs=[], error="Cannot connect to CUPS server")
+    
+    try:
+        jobs = conn.getJobs()
+        job_list = []
+        job_states = {
+            3: ("Pending", "badge-warning"),
+            4: ("Held", "badge-warning"),
+            5: ("Processing", "badge-warning"),
+            6: ("Stopped", "badge-danger"),
+            7: ("Canceled", "badge-danger"),
+            8: ("Aborted", "badge-danger"),
+            9: ("Completed", "badge-success")
+        }
+        for job_id, attrs in jobs.items():
+            state = attrs.get("job-state", 0)
+            state_text, badge_class = job_states.get(state, ("Unknown", "badge-danger"))
+            job_list.append({
+                "id": job_id,
+                "name": attrs.get("job-name", "Unknown"),
+                "printer": attrs.get("job-printer-name", "Unknown"),
+                "user": attrs.get("job-originating-user-name", "Unknown"),
+                "state": state_text,
+                "badge_class": badge_class,
+                "size": attrs.get("job-k-octets", 0),
+                "time": datetime.fromtimestamp(attrs.get("time-at-creation", 0)).strftime("%Y-%m-%d %H:%M:%S")
+            })
+        logger.info(f"Retrieved {len(job_list)} print jobs")
+        return render_template("jobs.html", jobs=job_list)
+    except Exception as e:
+        logger.error(f"Error getting jobs: {e}")
+        return render_template("jobs.html", jobs=[], error=str(e))
+
 @app.route("/printer-detail/<name>")
 @login_required
 def printer_detail(name):
@@ -138,7 +179,8 @@ def printer_detail(name):
             "driver": attrs.get("printer-make-and-model", ""),
             "connection": f"ipp://{ip}/ipp" if ip else attrs.get("device-uri", ""),
             "defaults": "",
-            "members": classes.get(name, []) if is_class else []
+            "members": classes.get(name, []) if is_class else [],
+            "state": attrs.get("printer-state-message", "Unknown")
         }
         
         options = conn.getPrinterAttributes(name) if not is_class else {}

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CUPS Printer Management</title>
+    <title>Print Jobs</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -31,30 +31,30 @@
         {% endif %}
         <div class="card">
             <div class="card-header">
-                <h2 class="card-title">Printers and Classes</h2>
-                <a href="/add-printer" class="btn btn-primary">Add Printer/Class</a>
+                <h2 class="card-title">Recent Print Jobs</h2>
             </div>
             <table class="table">
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Type</th>
+                        <th>ID</th>
+                        <th>Document</th>
+                        <th>Printer</th>
+                        <th>User</th>
                         <th>Status</th>
-                        <th>URI</th>
+                        <th>Size (KB)</th>
+                        <th>Submitted</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for printer in printers %}
+                    {% for job in jobs %}
                         <tr>
-                            <td><a href="/printer-detail/{{ printer.name }}">{{ printer.name }}</a></td>
-                            <td>{{ printer.type | capitalize }}</td>
-                            <td>
-                                <div class="printer-status">
-                                    <span class="status-indicator {{ 'status-idle' if printer.state.lower() == 'idle' else 'status-printing' if 'printing' in printer.state.lower() else 'status-error' }}"></span>
-                                    <span>{{ printer.state or 'Unknown' }}</span>
-                                </div>
-                            </td>
-                            <td>{{ printer.uri }}</td>
+                            <td>#{{ job.id }}</td>
+                            <td>{{ job.name }}</td>
+                            <td>{{ job.printer }}</td>
+                            <td>{{ job.user }}</td>
+                            <td><span class="badge {{ job.badge_class }}">{{ job.state }}</span></td>
+                            <td>{{ job.size }}</td>
+                            <td>{{ job.time }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
