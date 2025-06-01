@@ -1,0 +1,34 @@
+services:
+  print-manager:
+    build: ./cups/
+    ports:
+      - "8088:8088"
+    env_file:
+      - .env
+    networks:
+      - shared-network
+    depends_on:
+      - cups
+  cups:
+    build:
+      context: ./web-interface/
+      args:
+        CUPS_ADMIN_USER: ${CUPS_ADMIN_USER}
+        CUPS_ADMIN_PASSWORD: ${CUPS_ADMIN_PASSWORD}
+    container_name: cups
+    ports:
+      - "631:${CUPS_PORT}"
+    volumes:
+      - cups_logs:/var/log/cups
+      - cups_config:/etc/cups
+    restart: unless-stopped
+    networks:
+      - shared-network
+
+networks:
+  shared-network:
+    driver: bridge
+
+volumes:
+  cups_logs:
+  cups_config:
