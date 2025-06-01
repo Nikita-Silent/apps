@@ -39,8 +39,12 @@
                     <td><span class="pf-v6-c-badge {{ printer.health.badge }}">{{ printer.health.status }}</span></td>
                 </tr>
                 <tr>
-                    <th scope="row">URI</th>
-                    <td>{{ printer.uri | e }}</td>
+                    <th scope="row">URI подключения</th>
+                    <td>{{ printer.connection_uri | e }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">HTML URI</th>
+                    <td>{{ printer.ipp_uri | e }}</td>
                 </tr>
                 <tr>
                     <th scope="row">IP-адрес</th>

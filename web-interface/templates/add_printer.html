@@ -35,10 +35,35 @@
                 </div>
                 <div class="pf-v6-c-form__group">
                     <label class="pf-v6-c-form__label" for="printer-uri">
-                        <span class="pf-v6-c-form__label-text">URI</span>
+                        <span class="pf-v6-c-form__label-text">URI подключения</span>
                         <span class="pf-v6-c-form__label-required" aria-hidden="true">*</span>
                     </label>
-                    <input class="pf-v6-c-form-control" type="text" id="printer-uri" name="printer-uri" placeholder="ipp://192.168.1.100:631/printers/PrinterName" required>
+                    <input class="pf-v6-c-form-control" type="text" id="printer-uri" name="printer-uri" placeholder="ipp://192.168.1.100:631/ipp" required>
+                </div>
+                <div class="pf-v6-c-form__group" style="text-align: left; margin-left: 0;">
+                    <label class="pf-v6-c-form__label" for="is-shared">
+                        <span class="pf-v6-c-form__label-text">Включить общий доступ</span>
+                    </label>
+                    <input class="pf-v6-c-check" type="checkbox" id="is-shared" name="is-shared" style="margin-left: 0;">
+                </div>
+                <div class="pf-v6-c-form__group">
+                    <label class="pf-v6-c-form__label" for="vendor">
+                        <span class="pf-v6-c-form__label-text">Производитель</span>
+                    </label>
+                    <select class="pf-v6-c-form-control" id="vendor" name="vendor" onchange="updateDrivers()">
+                        <option value="">Выберите производителя</option>
+                        {% for vendor in vendors %}
+                            <option value="{{ vendor }}">{{ vendor }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="pf-v6-c-form__group">
+                    <label class="pf-v6-c-form__label" for="ppd-name">
+                        <span class="pf-v6-c-form__label-text">Драйвер</span>
+                    </label>
+                    <select class="pf-v6-c-form-control" id="ppd-name" name="ppd-name">
+                        <option value="">Выберите драйвер</option>
+                    </select>
                 </div>
                 <div class="pf-v6-c-form__group pf-m-action">
                     <button class="pf-v6-c-button pf-m-primary" type="submit">Добавить</button>
@@ -48,4 +73,26 @@
         </div>
     </div>
 </section>
+{% endblock %}
+{% block scripts %}
+<script>
+    function updateDrivers() {
+        const vendor = document.getElementById('vendor').value;
+        const driverSelect = document.getElementById('ppd-name');
+        driverSelect.innerHTML = '<option value="">Выберите драйвер</option>';
+        if (vendor) {
+            fetch(`/get-drivers?vendor=${encodeURIComponent(vendor)}`)
+                .then(response => response.json())
+                .then(drivers => {
+                    drivers.forEach(driver => {
+                        const option = document.createElement('option');
+                        option.value = driver.ppd_name;
+                        option.text = driver.ppd_display;
+                        driverSelect.appendChild(option);
+                    });
+                })
+                .catch(error => console.error('Ошибка получения драйверов:', error));
+        }
+    }
+</script>
 {% endblock %}

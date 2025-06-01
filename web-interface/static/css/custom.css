@@ -203,3 +203,6 @@
 [class*="pf-v6-c-content"] {
     color: var(--pf-t--global--text--color--light, #FFFFFF);
 }
+.pf-v6-c-check {
+    margin-left: 0 !important;
+}

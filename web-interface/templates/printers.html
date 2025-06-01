@@ -24,13 +24,14 @@
                     <th scope="col">Тип</th>
                     <th scope="col">Статус</th>
                     <th scope="col">Здоровье</th>
-                    <th scope="col">URI</th>
+                    <th scope="col">URI подключения</th>
+                    <th scope="col">HTML URI</th>
                 </tr>
             </thead>
             <tbody>
                 {% if not printers %}
                 <tr>
-                    <td colspan="5" class="pf-v6-c-table__text-center">Принтеры не найдены</td>
+                    <td colspan="6" class="pf-v6-c-table__text-center">Принтеры не найдены</td>
                 </tr>
                 {% else %}
                 {% for printer in printers %}
@@ -39,7 +40,8 @@
                     <td>{{ printer.type | capitalize }}</td>
                     <td>{{ printer.state or 'Неизвестно' }}</td>
                     <td><span class="pf-v6-c-badge {{ printer.health.badge }}">{{ printer.health.status }}</span></td>
-                    <td>{{ printer.uri | e }}</td>
+                    <td>{{ printer.connection_uri | e }}</td>
+                    <td>{{ printer.ipp_uri | e }}</td>
                 </tr>
                 {% endfor %}
                 {% endif %}

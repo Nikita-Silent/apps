@@ -1,65 +1,52 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CUPS Printer Management</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-    <nav class="navbar">
-        <div class="navbar-brand">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M6 9V2H18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M6 18H4C2.89543 18 2 17.1046 2 16V11C2 9.89543 2.89543 9 4 9H20C21.1046 9 22 9.89543 22 11V16C22 17.1046 21.1046 18 20 18H18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M18 22H6V18H18V22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            CUPS Admin
-        </div>
-        <div class="nav-links">
-            <a href="/">Dashboard</a>
-            <a href="/">Printers</a>
-            <a href="/jobs">Jobs</a>
-            <a href="#">Administration</a>
-            <a href="/logout">Logout</a>
-        </div>
-    </nav>
-    <div class="container">
-        {% if error %}
-            <div class="alert alert-danger">{{ error }}</div>
-        {% endif %}
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">Printers and Classes</h2>
-                <a href="/add-printer" class="btn btn-primary">Add Printer/Class</a>
-            </div>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th>URI</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for printer in printers %}
-                        <tr>
-                            <td><a href="/printer-detail/{{ printer.name }}">{{ printer.name }}</a></td>
-                            <td>{{ printer.type | capitalize }}</td>
-                            <td>
-                                <div class="printer-status">
-                                    <span class="status-indicator {{ 'status-idle' if printer.state.lower() == 'idle' else 'status-printing' if 'printing' in printer.state.lower() else 'status-error' }}"></span>
-                                    <span>{{ printer.state or 'Unknown' }}</span>
-                                </div>
-                            </td>
-                            <td>{{ printer.uri }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+{% extends "base.html" %}
+{% block title %}Принтеры CUPS{% endblock %}
+{% block content %}
+<section class="pf-v6-c-page__main-section">
+    <div class="pf-v6-c-content">
+        <h1 class="pf-v6-c-title pf-m-2xl">Принтеры и классы</h1>
     </div>
-</body>
-</html>
+    {% if error %}
+    <div class="pf-v6-c-alert pf-m-danger" aria-label="Ошибка">
+        <div class="pf-v6-c-alert__icon">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        <h4 class="pf-v6-c-alert__title">{{ error }}</h4>
+    </div>
+    {% endif %}
+    <div class="pf-v6-c-card">
+        <div class="pf-v6-c-card__header">
+            <a href="/add-printer" class="pf-v6-c-button pf-m-primary">Добавить принтер/класс</a>
+        </div>
+        <table class="pf-v6-c-table pf-m-grid-md pf-m-compact" role="grid" aria-label="Таблица принтеров">
+            <thead>
+                <tr>
+                    <th scope="col">Имя</th>
+                    <th scope="col">Тип</th>
+                    <th scope="col">Статус</th>
+                    <th scope="col">Здоровье</th>
+                    <th scope="col">URI подключения</th>
+                    <th scope="col">IPP URI</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not printers %}
+                <tr>
+                    <td colspan="6" class="pf-v6-c-table__text-center">Принтеры не найдены</td>
+                </tr>
+                {% else %}
+                {% for printer in printers %}
+                <tr>
+                    <td><a href="/printer-detail/{{ printer.name }}">{{ printer.name }}</a></td>
+                    <td>{{ printer.type | capitalize }}</td>
+                    <td>{{ printer.state or 'Неизвестно' }}</td>
+                    <td><span class="pf-v6-c-badge {{ printer.health.badge }}">{{ printer.health.status }}</span></td>
+                    <td>{{ printer.connection_uri | e }}</td>
+                    <td>{{ printer.ipp_uri | e }}</td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
