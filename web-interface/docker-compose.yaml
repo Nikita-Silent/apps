@@ -5,4 +5,8 @@ services:
       - "8088:8088"
     env_file:
       - .env
-    network_mode: host
+    networks:
+      - print-network
+networks:
+  print-network:
+    driver: bridge

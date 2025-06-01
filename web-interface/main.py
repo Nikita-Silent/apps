@@ -322,45 +322,28 @@ def add_printer():
         printer_name = request.form.get('printer-name')
         printer_type = request.form.get('printer-type')
         printer_uri = request.form.get('printer-uri')
-        is_shared = request.form.get('is-shared') == 'on'
-        ppd_name = request.form.get('ppd-name')
-        logger.debug(f"Попытка добавить принтер: name={printer_name}, type={printer_type}, uri={printer_uri}, shared={is_shared}, ppd={ppd_name}")
+
+        logger.debug(f"Attempting to add printer: name={printer_name}, type={printer_type}, uri={printer_uri}")
+
         if not all([printer_name, printer_type, printer_uri]):
-            logger.warning("Неполные данные формы принтера")
-            return render_template('add_printer.html', error='Заполните все обязательные поля'), 400
+            logger.warning("Incomplete printer form data")
+            return render_template('add_printer.html', error='Fill all fields'), 400
+
         try:
             conn = create_cups_connection()
             if printer_type == 'printer':
-                ppd_file = None
-                if ppd_name:
-                    ppd_file = conn.getPPD(ppd_name)
-                conn.addPrinter(
-                    name=printer_name,
-                    device=printer_uri,
-                    ppd=ppd_file,
-                    info={'printer-is-shared': 'true' if is_shared else 'false'}
-                )
+                conn.addPrinter(name=printer_name, device=printer_uri)
                 conn.enablePrinter(printer_name)
                 conn.acceptJobs(printer_name)
-            else:
+            else:  # class
                 conn.createClass(printer_name, [printer_name])
-            logger.info(f"Добавлен {printer_type} {printer_name} с URI {printer_uri}, shared={is_shared}")
+            logger.info(f"Added {printer_type} {printer_name} with URI {printer_uri}")
             return redirect(url_for('printers'))
         except Exception as e:
-            logger.error(f"Ошибка добавления принтера {printer_name}: {str(e)}")
-            return render_template('add_printer.html', error=str(e)), 400
-        finally:
-            if ppd_file and os.path.exists(ppd_file):
-                os.remove(ppd_file)
-    try:
-        conn = create_cups_connection()
-        ppds = conn.getPPDs()
-        vendors = sorted(set(ppd.get('ppd-make', 'Неизвестно') for ppd in ppds.values()))
-        logger.debug(f"Получено {len(vendors)} производителей")
-    except Exception as e:
-        logger.error(f"Ошибка получения производителей: {str(e)}")
-        vendors = []
-    return render_template('add_printer.html', vendors=vendors)
+            logger.error(f"Error adding printer {printer_name}: {str(e)}")
+            return render_template('add_printer.html', error=str(e)), 500
+
+    return render_template('add_printer.html')
 
 @app.route('/get-drivers', methods=['GET'])
 @require_auth
