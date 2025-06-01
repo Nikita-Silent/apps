@@ -12,8 +12,8 @@ load_dotenv()
 
 CUPS_SERVER = os.getenv("CUPS_SERVER", "localhost")
 CUPS_PORT = int(os.getenv("CUPS_PORT", "631"))
-ALLOWED_USER = os.getenv("ALLOWED_USER")
-ALLOWED_PASSWORD = os.getenv("ALLOWED_PASSWORD")
+ALLOWED_USER = os.getenv("CUPS_ADMIN_USER")
+ALLOWED_PASSWORD = os.getenv("CUPS_ADMIN_PASSWORD")
 SECRET_KEY = os.getenv("SECRET_KEY", "default_insecure_key")
 
 logging.basicConfig(
