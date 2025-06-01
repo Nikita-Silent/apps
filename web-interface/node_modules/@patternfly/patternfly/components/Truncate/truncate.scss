@@ -1,0 +1,54 @@
+@use '../../sass-utilities' as *;
+
+@include pf-root($truncate) {
+  --#{$truncate}--MinWidth: 6ch;
+  --#{$truncate}__start--MinWidth: 6ch;
+}
+
+.#{$truncate} {
+  display: inline-grid;
+  grid-auto-flow: column;
+  align-items: baseline;
+  min-width: var(--#{$truncate}--MinWidth);
+}
+
+.#{$truncate}__start,
+.#{$truncate}__end {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.#{$truncate}__start {
+  min-width: var(--#{$truncate}__start--MinWidth);
+}
+
+// End
+.#{$truncate}__end {
+  @include pf-v6-bidirectional-style (
+    $prop: direction,
+    $ltr-val: rtl,
+    $rtl-val: ltr
+  )
+}
+
+.#{$truncate}__start + .#{$truncate}__end {
+  overflow: visible;
+
+  @include pf-v6-bidirectional-style (
+    $prop: direction,
+    $ltr-val: ltr,
+    $rtl-val: rtl
+  )
+}
+
+// safari not supported
+@supports (-webkit-hyphens: none) {
+  .#{$truncate}__end {
+    @include pf-v6-bidirectional-style (
+      $prop: direction,
+      $ltr-val: ltr,
+      $rtl-val: rtl
+    )
+  }
+}

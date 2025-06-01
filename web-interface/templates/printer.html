@@ -1,76 +1,53 @@
 {% extends "base.html" %}
-{% block title %}Printer/Class Details{% endblock %}
+{% block title %}Детали принтера {{ printer.name }}{% endblock %}
 {% block content %}
+<section class="pf-v6-c-page__main-section">
+    <div class="pf-v6-c-content">
+        <h1 class="pf-v6-c-title pf-m-2xl">Принтер: {{ printer.name }}</h1>
+    </div>
     {% if error %}
-        <div class="alert alert-danger">{{ error }}</div>
-    {% else %}
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">{{ printer.type | capitalize }}: {{ printer.name }}</h2>
-                <div>
-                    <a href="/modify-printer/{{ printer.name }}" class="btn btn-info">Modify</a>
-                    <button class="btn btn-warning pause-btn" data-name="{{ printer.name }}">Pause</button>
-                    <button class="btn btn-success resume-btn" data-name="{{ printer.name }}">Resume</button>
-                    <button class="btn btn-danger delete-btn" data-name="{{ printer.name }}">Delete</button>
-                    <a href="/printers" class="btn btn-primary">Back to List</a>
-                </div>
-            </div>
-            <table class="table">
-                <tr><th>Name</th><td>{{ printer.name }}</td></tr>
-                <tr><th>Type</th><td>{{ printer.type | capitalize }}</td></tr>
-                <tr><th>Description</th><td>{{ printer.description }}</td></tr>
-                <tr><th>Location</th><td>{{ printer.location }}</td></tr>
-                {% if printer.type == "printer" %}
-                    <tr><th>Driver</th><td>{{ printer.driver }}</td></tr>
-                    <tr><th>Connection</th><td>{{ printer.connection }}</td></tr>
-                    <tr><th>Defaults</th><td>{{ printer.defaults }}</td></tr>
-                {% else %}
-                    <tr><th>Members</th><td>{{ printer.members | join(", ") or "None" }}</td></tr>
-                {% endif %}
-                <tr><th>Status</th>
-                    <td>
-                        <div class="printer-status">
-                            <span class="status-indicator {{ 'status-idle' if printer.state.lower() == 'idle' else 'status-printing' if 'printing' in printer.state.lower() else 'status-error' }}"></span>
-                            <span>{{ printer.state or 'Unknown' }}</span>
-                        </div>
-                    </td>
-                </tr>
-                <tr><th>Health</th>
-                    <td>
-                        <span class="badge {{ printer.health.badge }}">{{ printer.health.status }}</span>
-                        <span>({{ printer.health.details }})</span>
-                    </td>
-                </tr>
-            </table>
+    <div class="pf-v6-c-alert pf-m-danger" aria-label="Ошибка">
+        <div class="pf-v6-c-alert__icon">
+            <i class="fas fa-exclamation-circle"></i>
         </div>
+        <h4 class="pf-v6-c-alert__title">{{ error }}</h4>
+    </div>
     {% endif %}
-{% endblock %}
-{% block scripts %}
-    <script>
-        $(document).ready(function() {
-            $('.pause-btn').click(function() {
-                var name = $(this).data('name');
-                $.post('/printers/' + name + '/pause', function(data) {
-                    alert(data.message || data.error);
-                    location.reload();
-                });
-            });
-            $('.resume-btn').click(function() {
-                var name = $(this).data('name');
-                $.post('/printers/' + name + '/resume', function(data) {
-                    alert(data.message || data.error);
-                    location.reload();
-                });
-            });
-            $('.delete-btn').click(function() {
-                var name = $(this).data('name');
-                if (confirm('Are you sure you want to delete ' + name + '?')) {
-                    $.post('/printers/' + name + '/delete', function(data) {
-                        alert(data.message || data.error);
-                        window.location.href = '/printers';
-                    });
-                }
-            });
-        });
-    </script>
+    <div class="pf-v6-c-card">
+        <div class="pf-v6-c-card__header">
+            <a href="/modify-printer/{{ printer.name }}" class="pf-v6-c-button pf-m-primary">Изменить</a>
+            <form action="/delete-printer/{{ printer.name }}" method="POST" style="display:inline;">
+                <button class="pf-v6-c-button pf-m-danger" type="submit" onclick="return confirm('Вы уверены, что хотите удалить {{ printer.name }}?')">Удалить</button>
+            </form>
+        </div>
+        <table class="pf-v6-c-table pf-m-grid-md pf-m-compact" role="grid" aria-label="Детали принтера">
+            <tbody>
+                <tr>
+                    <th scope="row">Имя</th>
+                    <td>{{ printer.name }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">Тип</th>
+                    <td>{{ printer.type | capitalize }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">Статус</th>
+                    <td>{{ printer.state or 'Неизвестно' }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">Здоровье</th>
+                    <td><span class="pf-v6-c-badge {{ printer.health.badge }}">{{ printer.health.status }}</span></td>
+                </tr>
+                <tr>
+                    <th scope="row">URI</th>
+                    <td>{{ printer.uri | e }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">IP-адрес</th>
+                    <td>{{ printer.ip_address | e }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
 {% endblock %}

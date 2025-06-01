@@ -1,0 +1,205 @@
+/* Нордический тёмный стиль */
+.pf-v6-c-page {
+    background-color: var(--pf-t--global--background--color--primary-dark, #1C2526);
+    color: var(--pf-t--global--text--color--primary, #D8DEE9);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.pf-v6-c-page__main {
+    flex: 1;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0 var(--pf-t--global--spacer--md, 16px);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.pf-v6-c-page__main-section {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: var(--pf-t--global--spacer--md, 16px);
+    box-sizing: border-box;
+    background-color: var(--pf-t--global--background--color--secondary-dark, #2E3440);
+}
+
+/* Для больших экранов */
+@media (min-width: 1200px) {
+    .pf-v6-c-page__main-section {
+        padding: var(--pf-t--global--spacer--lg, 24px);
+    }
+}
+
+/* Для мобильных устройств */
+@media (max-width: 768px) {
+    .pf-v6-c-page__main-section {
+        padding: var(--pf-t--global--spacer--sm, 8px);
+    }
+}
+
+.pf-v6-l-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+.pf-v6-c-masthead {
+    background-color: var(--pf-t--global--background--color--secondary-dark, #2E3440);
+    border-bottom: 1px solid var(--pf-t--global--border--color--primary, #4C566A);
+}
+
+.pf-v6-c-masthead__brand {
+    color: var(--pf-t--global--icon--color--brand, #88C0D0);
+    font-weight: var(--pf-t--global--font--weight--bold, 700);
+}
+
+.pf-v6-c-nav__link {
+    color: var(--pf-t--global--text--color--primary, #D8DEE9);
+}
+
+.pf-v6-c-nav__link:hover {
+    color: var(--pf-t--global--icon--color--brand--clicked, #88C0D0);
+    background-color: var(--pf-t--global--background--color--secondary--hover, #3B4252);
+}
+
+.pf-v6-c-card {
+    background-color: var(--pf-t--global--background--color--secondary-dark, #2E3440);
+    border: 1px solid var(--pf-t--global--border--color--primary, #4C566A);
+    color: var(--pf-t--global--text--color--primary, #D8DEE9);
+}
+
+.pf-v6-c-card__body {
+    font-size: var(--pf-t--global--font--size--lg, 18px); /* Увеличенный размер текста */
+}
+
+.pf-v6-c-card__footer {
+    color: var(--pf-t--global--text--color--light, #FFFFFF); /* Белый цвет текста */
+}
+
+/* Стили для таблиц */
+.pf-v6-c-table {
+    background-color: #2A2F3A;
+    color: var(--pf-t--global--text--color--primary, #D8DEE9);
+    border-collapse: collapse;
+    border: 2px solid var(--pf-t--global--border--color--primary, #4C566A);
+}
+
+.pf-v6-c-table th, .pf-v6-c-table td {
+    border: 1px solid var(--pf-t--global--border--color--primary, #4C566A);
+    padding: var(--pf-t--global--spacer--sm, 8px);
+    text-align: left;
+}
+
+/* Чередование строк */
+.pf-v6-c-table tr:nth-child(even) {
+    background-color: #252932;
+}
+
+/* Hover-эффект для строк */
+.pf-v6-c-table tr:hover {
+    background-color: var(--pf-t--global--icon--color--brand--clicked, #81A1C1);
+    color: var(--pf-t--global--text--color--primary, #D8DEE9);
+}
+
+/* Заголовки таблицы */
+.pf-v6-c-table th {
+    background-color: var(--pf-t--global--background--color--primary-dark, #1C2526);
+    font-weight: var(--pf-t--global--font--weight--bold, 700);
+    color: var(--pf-t--global--text--color--secondary, #88C0D0);
+}
+
+/* Стили для badge */
+.pf-v6-c-badge {
+    background-color: var(--pf-t--global--background--color--secondary, #3B4252);
+    color: var(--pf-t--global--text--color--primary, #D8DEE9);
+    padding: var(--pf-t--global--spacer--xs, 4px) var(--pf-t--global--spacer--sm, 8px);
+}
+
+.pf-v6-c-badge.badge-success {
+    background-color: var(--pf-t--global--success--color--default, #A3BE8C);
+    color: var(--pf-t--global--text--color--dark, #2E3440);
+}
+
+.pf-v6-c-badge.badge-danger {
+    background-color: var(--pf-t--global--danger--color--default, #BF616A);
+    color: var(--pf-t--global--text--color--primary, #D8DEE9);
+}
+
+.pf-v6-c-form-control {
+    background-color: var(--pf-t--global--background--color--secondary, #3B4252);
+    color: var(--pf-t--global--text--color--primary, #D8DEE9);
+    border: 1px solid var(--pf-t--global--border--color--primary, #4C566A);
+}
+
+.pf-v6-c-form-control:focus {
+    border-color: var(--pf-t--global--icon--color--brand, #88C0D0);
+    box-shadow: 0 0 0 2px rgba(136, 192, 208, 0.3);
+}
+
+/* Убрать белую рамку у формы */
+.pf-v6-c-form {
+    border: none;
+}
+
+/* Стили для кнопок без скругления */
+.pf-v6-c-button {
+    --pf-t--global--border--radius--regular: 0;
+    border-radius: 0;
+}
+
+.pf-v6-c-button.pf-m-primary {
+    background-color: var(--pf-t--global--icon--color--brand, #88C0D0);
+    color: var(--pf-t--global--text--color--dark, #2E3440);
+}
+
+.pf-v6-c-button.pf-m-primary:hover {
+    background-color: var(--pf-t--global--icon--color--brand--clicked, #81A1C1);
+}
+
+.pf-v6-c-button.pf-m-success {
+    background-color: var(--pf-t--global--icon--color--brand, #88C0D0);
+    color: var(--pf-t--global--text--color--dark, #2E3440);
+}
+
+.pf-v6-c-button.pf-m-success:hover {
+    background-color: var(--pf-t--global--icon--color--brand--clicked, #81A1C1);
+}
+
+.pf-v6-c-button.pf-m-warning {
+    background-color: var(--pf-t--global--warning--color--default, #EBCB8B);
+    color: var(--pf-t--global--text--color--dark, #2E3440);
+}
+
+.pf-v6-c-button.pf-m-warning:hover {
+    background-color: var(--pf-t--global--warning--color--hover, #D08770);
+}
+
+.pf-v6-c-button.pf-m-danger {
+    background-color: var(--pf-t--global--danger--color--default, #BF616A);
+    color: var(--pf-t--global--text--color--primary, #D8DEE9);
+}
+
+.pf-v6-c-button.pf-m-danger:hover {
+    background-color: var(--pf-t--global--danger--color--hover, #A94442);
+}
+
+.pf-v6-c-alert.pf-m-danger {
+    background-color: var(--pf-t--global--background--color--secondary-dark, #4C566A);
+    color: var(--pf-t--global--danger--color--default, #BF616A);
+    border-left: 4px solid var(--pf-t--global--danger--color--default, #BF616A);
+}
+
+.logo-svg {
+    height: 80px;
+    fill: var(--pf-t--global--icon--color--brand, #88C0D0);
+}
+
+/* Изменение цвета текста для pf-v6-c-content */
+[class*="pf-v6-c-content"] {
+    color: var(--pf-t--global--text--color--light, #FFFFFF);
+}

@@ -1,72 +1,113 @@
 {% extends "base.html" %}
-{% block title %}Print Jobs{% endblock %}
+{% block title %}Задания печати{% endblock %}
 {% block content %}
+<section class="pf-v6-c-page__main-section">
+    <div class="pf-v6-c-content">
+        <h1 class="pf-v6-c-title pf-m-2xl">Задания печати</h1>
+    </div>
     {% if error %}
-        <div class="alert alert-danger">{{ error }}</div>
+    <div class="pf-v6-c-alert pf-m-danger" aria-label="Ошибка">
+        <div class="pf-v6-c-alert__icon">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        <h4 class="pf-v6-c-alert__title">{{ error }}</h4>
+    </div>
     {% endif %}
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
-            <h2 class="card-title mb-0">Print Jobs</h2>
-            <div class="form-group ms-auto" style="min-width: 150px;">
-                <label class="form-label" for="job-filter">Filter</label>
-                <select class="form-control" id="job-filter">
-                    <option value="all" {% if filter == 'all' %}selected{% endif %}>All Jobs</option>
-                    <option value="active" {% if filter == 'active' %}selected{% endif %}>Active Jobs</option>
-                    <option value="completed" {% if filter == 'completed' %}selected{% endif %}>Completed Jobs</option>
+    <div class="pf-v6-c-card">
+        <div class="pf-v6-c-card__header">
+            <div class="pf-v6-c-form__group">
+                <label class="pf-v6-c-form__label" for="job-filter">Фильтр</label>
+                <select class="pf-v6-c-form-control" id="job-filter">
+                    <option value="all" {% if filter == 'all' %}selected{% endif %}>Все задания</option>
+                    <option value="active" {% if filter == 'active' %}selected{% endif %}>Активные задания</option>
+                    <option value="completed" {% if filter == 'completed' %}selected{% endif %}>Завершённые задания</option>
                 </select>
             </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-striped" id="jobs-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Document</th>
-                        <th>Printer</th>
-                        <th>User</th>
-                        <th>Status</th>
-                        <th>Size (KB)</th>
-                        <th>Submitted</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if not jobs %}
-                        <tr><td colspan="7" class="text-center">No jobs found</td></tr>
-                    {% else %}
-                        {% for job in jobs %}
-                            <tr>
-                                <td>#{{ job.id }}</td>
-                                <td>{{ job.name }}</td>
-                                <td>{{ job.printer }}</td>
-                                <td>{{ job.user }}</td>
-                                <td><span class="badge {{ job.badge_class }}">{{ job.state }}</span></td>
-                                <td>{{ job.size }}</td>
-                                <td>{{ job.time }}</td>
-                            </tr>
-                        {% endfor %}
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
+        <table class="pf-v6-c-table pf-m-grid-md pf-m-compact" role="grid" id="jobs-table" aria-label="Таблица заданий">
+            <thead>
+                <tr>
+                    <th scope="col">ID</th>
+                    <th scope="col">Название</th>
+                    <th scope="col">Принтер</th>
+                    <th scope="col">Пользователь</th>
+                    <th scope="col">Статус</th>
+                    <th scope="col">Размер (KB)</th>
+                    <th scope="col">Отправлено</th>
+                </tr>
+            </thead>
+            <tbody id="jobs-table-body">
+                {% if not jobs %}
+                <tr>
+                    <td colspan="7" class="pf-v6-c-table__text-center">Заданий не найдено</td>
+                </tr>
+                {% else %}
+                {% for job in jobs %}
+                <tr>
+                    <td>#{{ job.id }}</td>
+                    <td>{{ job.name | e }}</td>
+                    <td>{{ job.printer | e }}</td>
+                    <td>{{ job.user | e }}</td>
+                    <td><span class="pf-v6-c-badge {{ job.badge_class }}">{{ job.state }}</span></td>
+                    <td>{{ job.size }}</td>
+                    <td>{{ job.time }}</td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
         {% if jobs|length >= 50 %}
-            <div class="pagination text-center mt-3">
-                <p>Showing first 50 jobs. Contact admin for full list.</p>
-            </div>
+        <div class="pf-v6-c-content pf-m-text-center pf-m-t-md">
+            <p>Показаны первые 50 заданий. Обратитесь к администратору для полного списка.</p>
+        </div>
         {% endif %}
     </div>
+</section>
 {% endblock %}
 {% block scripts %}
-    <script>
-        $(document).ready(function() {
-            $('#job-filter').change(function() {
-                var filter = $(this).val();
-                $.get('/jobs?filter=' + filter, function(data) {
-                    var jobs = $(data).find('#jobs-table tbody').html();
-                    $('#jobs-table tbody').html(jobs);
-                }).fail(function() {
-                    alert('Error loading jobs');
-                });
+<script>
+    $(document).ready(function() {
+        $('#job-filter').change(function() {
+            var filter = $(this).val();
+            console.log('Отправка запроса с фильтром: ' + filter); // Отладка
+            $.ajax({
+                url: '/jobs',
+                method: 'GET',
+                data: { filter: filter },
+                dataType: 'json',
+                success: function(data) {
+                    console.log('Получен ответ:', data); // Отладка
+                    var tbody = $('#jobs-table-body');
+                    tbody.empty();
+                    if (data.error) {
+                        tbody.append('<tr><td colspan="7" class="pf-v6-c-table__text-center">Ошибка: ' + data.error + '</td></tr>');
+                    } else if (!data.jobs || data.jobs.length === 0) {
+                        tbody.append('<tr><td colspan="7" class="pf-v6-c-table__text-center">Заданий не найдено</td></tr>');
+                    } else {
+                        data.jobs.forEach(function(job) {
+                            var row = `
+                                <tr>
+                                    <td>#${job.id}</td>
+                                    <td>${job.name}</td>
+                                    <td>${job.printer}</td>
+                                    <td>${job.user}</td>
+                                    <td><span class="pf-v6-c-badge ${job.badge_class}">${job.state}</span></td>
+                                    <td>${job.size}</td>
+                                    <td>${job.time}</td>
+                                </tr>`;
+                            tbody.append(row);
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Ошибка AJAX:', status, error, xhr.responseText); // Отладка
+                    var tbody = $('#jobs-table-body');
+                    tbody.empty();
+                    var errorMsg = xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : 'Не удалось загрузить задания';
+                    tbody.append('<tr><td colspan="7" class="pf-v6-c-table__text-center">Ошибка: ' + errorMsg + '</td></tr>');
+                }
             });
         });
-    </script>
+    });
+</script>
 {% endblock %}

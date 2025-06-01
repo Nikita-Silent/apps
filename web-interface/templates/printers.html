@@ -1,40 +1,50 @@
 {% extends "base.html" %}
-{% block title %}CUPS Printers{% endblock %}
+{% block title %}Принтеры CUPS{% endblock %}
 {% block content %}
+<section class="pf-v6-c-page__main-section">
+    <div class="pf-v6-c-content">
+        <h1 class="pf-v6-c-title pf-m-2xl">Принтеры и классы</h1>
+    </div>
     {% if error %}
-        <div class="alert alert-danger">{{ error }}</div>
-    {% endif %}
-    <div class="card">
-        <div class="card-header">
-            <h2 class="card-title">Printers and Classes</h2>
-            <a href="/add-printer" class="btn btn-primary">Add Printer/Class</a>
+    <div class="pf-v6-c-alert pf-m-danger" aria-label="Ошибка">
+        <div class="pf-v6-c-alert__icon">
+            <i class="fas fa-exclamation-circle"></i>
         </div>
-        <table class="table">
+        <h4 class="pf-v6-c-alert__title">{{ error }}</h4>
+    </div>
+    {% endif %}
+    <div class="pf-v6-c-card">
+        <div class="pf-v6-c-card__header">
+            <a href="/add-printer" class="pf-v6-c-button pf-m-primary">Добавить принтер/класс</a>
+        </div>
+        <table class="pf-v6-c-table pf-m-grid-md pf-m-compact" role="grid" aria-label="Таблица принтеров">
             <thead>
                 <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Health</th>
-                    <th>URI</th>
+                    <th scope="col">Имя</th>
+                    <th scope="col">Тип</th>
+                    <th scope="col">Статус</th>
+                    <th scope="col">Здоровье</th>
+                    <th scope="col">URI</th>
                 </tr>
             </thead>
             <tbody>
+                {% if not printers %}
+                <tr>
+                    <td colspan="5" class="pf-v6-c-table__text-center">Принтеры не найдены</td>
+                </tr>
+                {% else %}
                 {% for printer in printers %}
-                    <tr>
-                        <td><a href="/printer-detail/{{ printer.name }}">{{ printer.name }}</a></td>
-                        <td>{{ printer.type | capitalize }}</td>
-                        <td>
-                            <div class="printer-status">
-                                <span class="status-indicator {{ 'status-idle' if printer.state.lower() == 'idle' else 'status-printing' if 'printing' in printer.state.lower() else 'status-error' }}"></span>
-                                <span>{{ printer.state or 'Unknown' }}</span>
-                            </div>
-                        </td>
-                        <td><span class="badge {{ printer.health.badge }}">{{ printer.health.status }}</span></td>
-                        <td>{{ printer.uri }}</td>
-                    </tr>
+                <tr>
+                    <td><a href="/printer-detail/{{ printer.name }}">{{ printer.name }}</a></td>
+                    <td>{{ printer.type | capitalize }}</td>
+                    <td>{{ printer.state or 'Неизвестно' }}</td>
+                    <td><span class="pf-v6-c-badge {{ printer.health.badge }}">{{ printer.health.status }}</span></td>
+                    <td>{{ printer.uri | e }}</td>
+                </tr>
                 {% endfor %}
+                {% endif %}
             </tbody>
         </table>
     </div>
+</section>
 {% endblock %}

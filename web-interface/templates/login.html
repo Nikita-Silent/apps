@@ -1,23 +1,40 @@
 {% extends "base.html" %}
-{% block title %}Login{% endblock %}
+{% block title %}Вход в CUPS{% endblock %}
 {% block content %}
-    <div class="card">
-        <div class="card-header">
-            <h2 class="card-title">Login</h2>
-        </div>
-        {% if error %}
-            <div class="alert alert-danger">{{ error }}</div>
-        {% endif %}
-        <form method="POST">
-            <div class="form-group">
-                <label class="form-label" for="username">Username</label>
-                <input type="text" class="form-control" id="username" name="username" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label" for="password">Password</label>
-                <input type="password" class="form-control" id="password" name="password" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Login</button>
-        </form>
+<section class="pf-v6-c-page__main-section">
+    <div class="pf-v6-c-content">
+        <h1 class="pf-v6-c-title pf-m-2xl">Вход</h1>
     </div>
+    {% if error %}
+    <div class="pf-v6-c-alert pf-m-danger" aria-label="Ошибка">
+        <div class="pf-v6-c-alert__icon">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        <h4 class="pf-v6-c-alert__title">{{ error }}</h4>
+    </div>
+    {% endif %}
+    <div class="pf-v6-c-card">
+        <div class="pf-v6-c-card__body">
+            <form class="pf-v6-c-form" action="/login" method="POST">
+                <div class="pf-v6-c-form__group">
+                    <label class="pf-v6-c-form__label" for="username">
+                        <span class="pf-v6-c-form__label-text">Имя пользователя</span>
+                        <span class="pf-v6-c-form__label-required" aria-hidden="true">*</span>
+                    </label>
+                    <input class="pf-v6-c-form-control" type="text" id="username" name="username" required>
+                </div>
+                <div class="pf-v6-c-form__group">
+                    <label class="pf-v6-c-form__label" for="password">
+                        <span class="pf-v6-c-form__label-text">Пароль</span>
+                        <span class="pf-v6-c-form__label-required" aria-hidden="true">*</span>
+                    </label>
+                    <input class="pf-v6-c-form-control" type="password" id="password" name="password" required>
+                </div>
+                <div class="pf-v6-c-form__group pf-m-action">
+                    <button class="pf-v6-c-button pf-m-primary" type="submit">Войти</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
 {% endblock %}

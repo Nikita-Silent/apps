@@ -1,83 +1,51 @@
 {% extends "base.html" %}
-{% block title %}Modify Printer/Class{% endblock %}
+{% block title %}Изменить принтер {{ printer.name }}{% endblock %}
 {% block content %}
+<section class="pf-v6-c-page__main-section">
+    <div class="pf-v6-c-content">
+        <h1 class="pf-v6-c-title pf-m-2xl">Изменить принтер: {{ printer.name }}</h1>
+    </div>
     {% if error %}
-        <div class="alert alert-danger">{{ error }}</div>
-    {% elif not printer %}
-        <div class="alert alert-danger">No printer/class data available</div>
-    {% else %}
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">Modify {{ printer.type | capitalize }}: {{ printer.name }}</h2>
-                <a href="/printers" class="btn btn-primary">Back to List</a>
-            </div>
-            <form id="modifyForm" method="POST">
-                <input type="hidden" name="is_class" value="{{ 'true' if printer.type == 'class' else 'false' }}">
-                <div class="form-group">
-                    <label class="form-label" for="name">Name</label>
-                    <input type="text" class="form-control" id="name" name="name" value="{{ printer.name }}" required>
+    <div class="pf-v6-c-alert pf-m-danger" aria-label="Ошибка">
+        <div class="pf-v6-c-alert__icon">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        <h4 class="pf-v6-c-alert__title">{{ error }}</h4>
+    </div>
+    {% endif %}
+    <div class="pf-v6-c-card">
+        <div class="pf-v6-c-card__body">
+            <form class="pf-v6-c-form" action="/modify-printer/{{ printer.name }}" method="POST">
+                <div class="pf-v6-c-form__group">
+                    <label class="pf-v6-c-form__label" for="printer-name">
+                        <span class="pf-v6-c-form__label-text">Имя принтера</span>
+                        <span class="pf-v6-c-form__label-required" aria-hidden="true">*</span>
+                    </label>
+                    <input class="pf-v6-c-form-control" type="text" id="printer-name" name="printer-name" value="{{ printer.name }}" required>
                 </div>
-                <div class="form-group">
-                    <label class="form-label" for="description">Description</label>
-                    <input type="text" class="form-control" id="description" name="description" value="{{ printer.description }}">
+                <div class="pf-v6-c-form__group">
+                    <label class="pf-v6-c-form__label" for="printer-type">
+                        <span class="pf-v6-c-form__label-text">Тип</span>
+                        <span class="pf-v6-c-form__label-required" aria-hidden="true">*</span>
+                    </label>
+                    <select class="pf-v6-c-form-control" id="printer-type" name="printer-type" required>
+                        <option value="printer" {% if printer.type == 'printer' %}selected{% endif %}>Принтер</option>
+                        <option value="class" {% if printer.type == 'class' %}selected{% endif %}>Класс</option>
+                    </select>
                 </div>
-                <div class="form-group">
-                    <label class="form-label" for="location">Location</label>
-                    <input type="text" class="form-control" id="location" name="location" value="{{ printer.location }}">
+                <div class="pf-v6-c-form__group">
+                    <label class="pf-v6-c-form__label" for="printer-uri">
+                        <span class="pf-v6-c-form__label-text">URI</span>
+                        <span class="pf-v6-c-form__label-required" aria-hidden="true">*</span>
+                    </label>
+                    <input class="pf-v6-c-form-control" type="text" id="printer-uri" name="printer-uri" value="{{ printer.uri }}" required>
                 </div>
-                {% if printer.type == "printer" %}
-                    <div id="printerFields">
-                        <div class="form-group">
-                            <label class="form-label" for="protocol">Protocol</label>
-                            <select class="form-control" id="protocol" name="protocol">
-                                <option value="ipp" {{ 'selected' if printer.connection.startswith('ipp://') else '' }}>IPP</option>
-                                <option value="ipps" {{ 'selected' if printer.connection.startswith('ipps://') else '' }}>IPPS</option>
-                                <option value="http" {{ 'selected' if printer.connection.startswith('http://') else '' }}>HTTP</option>
-                                <option value="https" {{ 'selected' if printer.connection.startswith('https://') else '' }}>HTTPS</option>
-                                <option value="socket" {{ 'selected' if printer.connection.startswith('socket://') else '' }}>Socket</option>
-                                <option value="lpd" {{ 'selected' if printer.connection.startswith('lpd://') else '' }}>LPD</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="address">Address</label>
-                            <input type="text" class="form-control" id="address" name="address" value="{{ printer.connection | replace('ipp://', '') | replace('ipps://', '') | replace('http://', '') | replace('https://', '') | replace('socket://', '') | replace('lpd://', '') }}">
-                        </div>
-                    </div>
-                {% else %}
-                    <div id="classFields">
-                        <div class="form-group">
-                            <label class="form-label" for="members">Class Members</label>
-                            <select multiple class="form-control" id="members" name="members">
-                                {% for p in printers %}
-                                    <option value="{{ p }}" {{ 'selected' if p in printer.members else '' }}>{{ p }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                {% endif %}
-                <button type="submit" class="btn btn-success">Save Changes</button>
+                <div class="pf-v6-c-form__group pf-m-action">
+                    <button class="pf-v6-c-button pf-m-primary" type="submit">Сохранить</button>
+                    <a class="pf-v6-c-button pf-m-link" href="/printer-detail/{{ printer.name }}">Отмена</a>
+                </div>
             </form>
         </div>
-    {% endif %}
-{% endblock %}
-{% block scripts %}
-    <script>
-        $(document).ready(function() {
-            $('#modifyForm').submit(function(e) {
-                e.preventDefault();
-                $.ajax({
-                    url: '/modify-printer/{{ printer.name }}',
-                    type: 'POST',
-                    data: $(this).serialize(),
-                    success: function(data) {
-                        alert(data.message);
-                        window.location.href = '/printers';
-                    },
-                    error: function(xhr) {
-                        alert(xhr.responseJSON.error);
-                    }
-                });
-            });
-        });
-    </script>
+    </div>
+</section>
 {% endblock %}

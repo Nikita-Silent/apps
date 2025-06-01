@@ -1,92 +1,51 @@
 {% extends "base.html" %}
-{% block title %}Add Printer/Class{% endblock %}
+{% block title %}Добавить принтер{% endblock %}
 {% block content %}
-    {% if error %}
-        <div class="alert alert-danger">{{ error }}</div>
-    {% endif %}
-    <div class="card">
-        <div class="card-header">
-            <h2 class="card-title">Add Printer or Class</h2>
-            <a href="/printers" class="btn btn-primary">Back to List</a>
-        </div>
-        <form id="addForm" method="POST">
-            <div class="form-group">
-                <label class="form-label" for="is_class">Type</label>
-                <select class="form-control" id="is_class" name="is_class">
-                    <option value="false">Printer</option>
-                    <option value="true">Class</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label" for="name">Name</label>
-                <input type="text" class="form-control" id="name" name="name" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label" for="description">Description</label>
-                <input type="text" class="form-control" id="description" name="description">
-            </div>
-            <div class="form-group">
-                <label class="form-label" for="location">Location</label>
-                <input type="text" class="form-control" id="location" name="location">
-            </div>
-            <div id="printerFields">
-                <div class="form-group">
-                    <label class="form-label" for="protocol">Protocol</label>
-                    <select class="form-control" id="protocol" name="protocol">
-                        <option value="ipp">IPP</option>
-                        <option value="ipps">IPPS</option>
-                        <option value="http">HTTP</option>
-                        <option value="https">HTTPS</option>
-                        <option value="socket">Socket</option>
-                        <option value="lpd">LPD</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="address">Address</label>
-                    <input type="text" class="form-control" id="address" name="address" placeholder="e.g., 192.168.1.100:631/printers/PrinterName">
-                </div>
-            </div>
-            <div id="classFields" style="display: none;">
-                <div class="form-group">
-                    <label class="form-label" for="members">Class Members</label>
-                    <select multiple class="form-control" id="members" name="members">
-                        {% for printer in printers %}
-                            <option value="{{ printer }}">{{ printer }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <button type="submit" class="btn btn-success">Add</button>
-        </form>
+<section class="pf-v6-c-page__main-section">
+    <div class="pf-v6-c-content">
+        <h1 class="pf-v6-c-title pf-m-2xl">Добавить принтер</h1>
     </div>
-{% endblock %}
-{% block scripts %}
-    <script>
-        $(document).ready(function() {
-            $('#is_class').change(function() {
-                if ($(this).val() === "true") {
-                    $('#printerFields').hide();
-                    $('#classFields').show();
-                } else {
-                    $('#printerFields').show();
-                    $('#classFields').hide();
-                }
-            });
-            $('#addForm').submit(function(e) {
-                e.preventDefault();
-                $.ajax({
-                    url: '/add-printer',
-                    type: 'POST',
-                    data: $(this).serialize(),
-                    success: function(data) {
-                        alert(data.message);
-                        window.location.href = '/printers';
-                    },
-                    error: function(xhr) {
-                        alert(xhr.responseJSON.error);
-                    }
-                });
-            });
-        });
-    </script>
+    {% if error %}
+    <div class="pf-v6-c-alert pf-m-danger" aria-label="Ошибка">
+        <div class="pf-v6-c-alert__icon">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        <h4 class="pf-v6-c-alert__title">{{ error }}</h4>
+    </div>
+    {% endif %}
+    <div class="pf-v6-c-card">
+        <div class="pf-v6-c-card__body">
+            <form class="pf-v6-c-form" action="/add-printer" method="POST">
+                <div class="pf-v6-c-form__group">
+                    <label class="pf-v6-c-form__label" for="printer-name">
+                        <span class="pf-v6-c-form__label-text">Имя принтера</span>
+                        <span class="pf-v6-c-form__label-required" aria-hidden="true">*</span>
+                    </label>
+                    <input class="pf-v6-c-form-control" type="text" id="printer-name" name="printer-name" required>
+                </div>
+                <div class="pf-v6-c-form__group">
+                    <label class="pf-v6-c-form__label" for="printer-type">
+                        <span class="pf-v6-c-form__label-text">Тип</span>
+                        <span class="pf-v6-c-form__label-required" aria-hidden="true">*</span>
+                    </label>
+                    <select class="pf-v6-c-form-control" id="printer-type" name="printer-type" required>
+                        <option value="printer">Принтер</option>
+                        <option value="class">Класс</option>
+                    </select>
+                </div>
+                <div class="pf-v6-c-form__group">
+                    <label class="pf-v6-c-form__label" for="printer-uri">
+                        <span class="pf-v6-c-form__label-text">URI</span>
+                        <span class="pf-v6-c-form__label-required" aria-hidden="true">*</span>
+                    </label>
+                    <input class="pf-v6-c-form-control" type="text" id="printer-uri" name="printer-uri" placeholder="ipp://192.168.1.100:631/printers/PrinterName" required>
+                </div>
+                <div class="pf-v6-c-form__group pf-m-action">
+                    <button class="pf-v6-c-button pf-m-primary" type="submit">Добавить</button>
+                    <a class="pf-v6-c-button pf-m-link" href="/printers">Отмена</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
 {% endblock %}

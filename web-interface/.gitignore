@@ -1,3 +1,4 @@
 .env
 .venv
 flask_session
+app.log

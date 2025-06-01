@@ -1,46 +1,54 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>{% block title %}CUPS Web Interface{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/patternfly.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/patternfly-addons.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('dashboard') }}">CUPS Admin</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('printers') }}">Printers</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('jobs') }}">Jobs</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('add_printer') }}">Add Printer</a>
-                    </li>
-                </ul>
-                {% if 'username' in session %}
-                    <span class="navbar-text me-3">Logged in as {{ session['username'] }}</span>
-                    <a class="btn btn-outline-danger" href="{{ url_for('logout') }}">Logout</a>
-                {% endif %}
-            </div>
+<body class="pf-v6-c-page pf-v6-m-dark">
+    <header class="pf-v6-c-masthead">
+        <div class="pf-v6-c-masthead__main">
+            <a class="pf-v6-c-masthead__brand" href="/">
+                <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="CUPS Logo" class="logo-svg">
+            </a>
         </div>
-    </nav>
-    <div class="container">
-        {% block content %}{% endblock %}
-    </div>
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <div class="pf-v6-c-masthead__content">
+            <nav class="pf-v6-c-nav pf-m-horizontal" aria-label="Основная навигация">
+                <ul class="pf-v6-c-nav__list">
+                    {% if 'username' in session %}
+                    <li class="pf-v6-c-nav__item">
+                        <a href="/dashboard" class="pf-v6-c-nav__link">Дашборд</a>
+                    </li>
+                    <li class="pf-v6-c-nav__item">
+                        <a href="/printers" class="pf-v6-c-nav__link">Принтеры</a>
+                    </li>
+                    <li class="pf-v6-c-nav__item">
+                        <a href="/jobs" class="pf-v6-c-nav__link">Задания</a>
+                    </li>
+                    <li class="pf-v6-c-nav__item">
+                        <a href="/add-printer" class="pf-v6-c-nav__link">Добавить принтер</a>
+                    </li>
+                    <li class="pf-v6-c-nav__item">
+                        <span class="pf-v6-c-nav__link">Вошёл как {{ session['username'] }}</span>
+                    </li>
+                    <li class="pf-v6-c-nav__item">
+                        <a href="/logout" class="pf-v6-c-nav__link">Выйти</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </header>
+    <main class="pf-v6-c-page__main">
+        <div class="pf-v6-l-container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
     {% block scripts %}{% endblock %}
 </body>
 </html>

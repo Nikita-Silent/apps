@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@patternfly/patternfly": "^6.2.3"
+  }
+}

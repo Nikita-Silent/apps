@@ -1,0 +1,21 @@
+<svg width="500" height="120" viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Принтер -->
+  <g transform="translate(20, 20)">
+    <!-- Корпус принтера -->
+    <rect x="0" y="0" width="100" height="40" rx="8" ry="8" fill="#88C0D0" stroke="#2E3440" stroke-width="2"/>
+    
+    <!-- Детали корпуса -->
+    <rect x="5" y="5" width="90" height="5" rx="2" fill="#70B0A0"/> <!-- Верхняя полоса -->
+    <circle cx="15" cy="25" r="5" fill="#F8F8F8" stroke="#ccc" stroke-width="1"/> <!-- Кнопка -->
+    <circle cx="85" cy="25" r="5" fill="#F8F8F8" stroke="#ccc" stroke-width="1"/> <!-- Кнопка -->
+    <rect x="30" y="20" width="40" height="10" rx="2" fill="#F8F8F8" stroke="#ccc" stroke-width="1"/> <!-- Дисплей -->
+    
+    <!-- Бумага -->
+    <rect x="15" y="-15" width="70" height="15" rx="3" ry="3" fill="#F8F8F8" stroke="#ccc" stroke-width="1"/>
+  </g>
+  
+  <!-- Надпись "CUPS Web Interface" -->
+  <text x="140" y="50" font-family="Arial, sans-serif" font-size="32" fill="#88C0D0" font-weight="bold">
+    CUPS Web Interface
+  </text>
+</svg>

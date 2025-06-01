@@ -1,518 +1,532 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
-from flask_session import Session
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import cups
-import os
+import socket
+import re
 import logging
-from dotenv import load_dotenv
+import os
 from datetime import datetime
+from functools import wraps
+from dotenv import load_dotenv
 
 # Загружаем переменные из .env
 load_dotenv()
 
-app = Flask(__name__)
-
-# Настройка сессий
-app.config['SECRET_KEY'] = os.urandom(24).hex()
-app.config['SESSION_TYPE'] = 'filesystem'
-Session(app)
-
-# Настройка логирования
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-# Настройки CUPS
+# Настройки CUPS и авторизации
 CUPS_SERVER = os.getenv("CUPS_SERVER", "localhost")
 CUPS_PORT = int(os.getenv("CUPS_PORT", "631"))
+ALLOWED_USER = os.getenv("ALLOWED_USER")
+ALLOWED_PASSWORD = os.getenv("ALLOWED_PASSWORD")
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('app.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+app = Flask(__name__)
+app.secret_key = os.urandom(24)  # Безопасный ключ для сессий
 
 def get_connection(username, password):
     """Создаёт соединение с CUPS с указанными учетными данными."""
     try:
         def password_cb(prompt):
+            logger.debug(f"CUPS запросил пароль для {username}")
             return password
         cups.setPasswordCB(password_cb)
         cups.setUser(username)
         conn = cups.Connection(host=CUPS_SERVER, port=CUPS_PORT)
+        # Проверяем соединение
+        conn.getPrinters()
         logger.info(f"Connected to CUPS server at {CUPS_SERVER}:{CUPS_PORT} as {username}")
         return conn
     except Exception as e:
-        logger.error(f"Failed to connect to CUPS: {e}")
+        logger.error(f"Failed to connect to CUPS for {username}: {str(e)}")
         return None
 
-def is_printer_class(conn, name):
-    """Проверяет, является ли объект классом."""
+def get_cups_server_ip():
+    """Получает IP-адрес сервера CUPS из CUPS_SERVER."""
     try:
-        classes = conn.getClasses()
-        return name in classes
-    except Exception as e:
-        logger.error(f"Error checking class {name}: {e}")
-        return False
+        server_ip = socket.gethostbyname(CUPS_SERVER)
+        logger.debug(f"CUPS server {CUPS_SERVER} resolved to IP: {server_ip}")
+        return server_ip
+    except socket.gaierror:
+        logger.error(f"Failed to resolve CUPS server IP for {CUPS_SERVER}")
+        return "Unknown"
 
-def get_printer_health(attrs):
-    """Определяет состояние принтера на основе printer-state и printer-state-reasons."""
-    state = attrs.get("printer-state", 3)
-    reasons = attrs.get("printer-state-reasons", ["none"])
-    state_map = {3: "Idle", 4: "Printing", 5: "Stopped"}
-    state_text = state_map.get(state, "Unknown")
-    
-    if state == 3 and "none" in reasons:
-        return {"status": "Healthy", "badge": "badge-success", "details": "Idle"}
-    elif state == 4:
-        return {"status": "Active", "badge": "badge-warning", "details": "Printing"}
-    else:
-        details = ", ".join([r for r in reasons if r != "none"]) or "Error"
-        return {"status": "Error", "badge": "badge-danger", "details": details}
-
-@app.route("/")
-def index():
-    if 'username' in session and 'password' in session:
-        logger.info("User already logged in, redirecting to dashboard")
-        return redirect(url_for('dashboard'))
-    return redirect(url_for('login'))
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if 'username' in session and 'password' in session:
-        logger.info("User already logged in, redirecting to dashboard")
-        return redirect(url_for('dashboard'))
-    
-    if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
-        
-        if not all([username, password]):
-            return render_template("login.html", error="Missing username or password")
-        
-        conn = get_connection(username, password)
-        if conn:
-            session['username'] = username
-            session['password'] = password
-            logger.info(f"User {username} logged in")
-            return redirect(url_for('dashboard'))
-        else:
-            logger.warning(f"Invalid login attempt for {username}")
-            return render_template("login.html", error="Invalid username or password")
-    
-    return render_template("login.html")
-
-@app.route("/logout")
-def logout():
-    session.pop('username', None)
-    session.pop('password', None)
-    logger.info("User logged out")
-    return redirect(url_for('login'))
-
-def login_required(f):
-    def decorated_function(*args, **kwargs):
-        if 'username' not in session or 'password' not in session:
+def require_auth(f):
+    """Декоратор для проверки авторизации."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'username' not in session:
+            logger.warning(f"Неавторизованный доступ к {request.path}")
             return redirect(url_for('login'))
         return f(*args, **kwargs)
-    decorated_function.__name__ = f.__name__
-    return decorated_function
+    return decorated
 
-@app.route("/dashboard")
-@login_required
+def create_cups_connection():
+    """Создает соединение с CUPS с учетными данными из сессии."""
+    try:
+        username = session.get('username')
+        password = session.get('password')
+        if not username or not password:
+            logger.error("Нет учетных данных в сессии")
+            raise ValueError("Нет учетных данных в сессии")
+        
+        logger.debug(f"Создание CUPS-соединения для {username}")
+        conn = get_connection(username, password)
+        if conn is None:
+            raise RuntimeError("Не удалось создать соединение с CUPS")
+        return conn
+    except Exception as e:
+        logger.error(f"Ошибка подключения к CUPS: {str(e)}")
+        raise
+
+def extract_printer_name(printer_uri):
+    """Извлекает имя принтера из job-printer-uri."""
+    if not printer_uri:
+        return 'Unknown'
+    match = re.search(r'/printers/([^/]+)', printer_uri)
+    return match.group(1) if match else 'Unknown'
+
+@app.route('/')
+def index():
+    if 'username' in session:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if 'username' in session:
+        logger.info(f"Пользователь {session['username']} уже авторизован, перенаправление на /dashboard")
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        logger.debug(f"Попытка входа: username={username}, password={'*' * len(password) if password else 'пусто'}")
+        
+        if not username or not password:
+            logger.warning("Пустые учетные данные при попытке входа")
+            return render_template('login.html', error='Заполните все поля'), 400
+        
+        # Проверка конфигурации
+        if not ALLOWED_USER or not ALLOWED_PASSWORD:
+            logger.error("ALLOWED_USER или ALLOWED_PASSWORD не указаны в .env")
+            return render_template('login.html', error='Сервер не настроен'), 500
+        
+        # Проверка пользователя
+        if username != ALLOWED_USER:
+            logger.warning(f"Попытка входа с недопустимым пользователем: {username}")
+            return render_template('login.html', error='Доступ запрещён для этого пользователя'), 401
+        
+        # Проверка пароля
+        if password != ALLOWED_PASSWORD:
+            logger.warning(f"Неверный пароль для {username}")
+            return render_template('login.html', error='Неверное имя пользователя или пароль'), 401
+        
+        # Проверка через CUPS
+        conn = get_connection(username, password)
+        if conn is None:
+            logger.warning(f"Неудачная попытка входа для {username}")
+            return render_template('login.html', error='Ошибка подключения к CUPS'), 401
+        
+        session['username'] = username
+        session['password'] = password  # ВНИМАНИЕ: Хранение пароля в сессии небезопасно
+        logger.info(f"Успешная авторизация для {username}")
+        return redirect(url_for('dashboard'))
+    
+    logger.debug("Отображение страницы логина")
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    if 'username' in session:
+        username = session.pop('username')
+        session.pop('password', None)
+        logger.info(f"Пользователь {username} вышел")
+    return redirect(url_for('login'))
+
+@app.route('/dashboard')
+@require_auth
 def dashboard():
-    conn = get_connection(session['username'], session['password'])
-    if not conn:
-        return render_template("dashboard.html", error="Cannot connect to CUPS server", printer_count=0, active_printers=0, error_printers=0, completed_jobs=[], server_ip=CUPS_SERVER)
+    data = {
+        'printer_count': 0,
+        'active_printers': 0,
+        'error_printers': 0,
+        'server_ip': get_cups_server_ip(),
+        'completed_jobs': [],
+        'error': None
+    }
     
     try:
-        # Количество принтеров/классов
-        printers = conn.getPrinters()
-        printer_count = len(printers)
-        active_printers = 0
-        error_printers = 0
-        for attrs in printers.values():
-            health = get_printer_health(attrs)
-            if health["status"] == "Active":
-                active_printers += 1
-            elif health["status"] == "Error":
-                error_printers += 1
+        conn = create_cups_connection()
         
-        # Завершённые задания
-        requested_attributes = [
-            "job-id", "job-name", "job-printer-name", "job-originating-user-name",
-            "job-state", "job-k-octets", "time-at-creation", "job-printer-uri",
-            "destination"
-        ]
-        jobs = conn.getJobs(which_jobs="all", requested_attributes=requested_attributes)
-        logger.debug(f"Dashboard raw jobs: {jobs}")
-        job_states = {
-            3: ("Pending", "badge-warning"),
-            4: ("Held", "badge-warning"),
-            5: ("Processing", "badge-warning"),
-            6: ("Stopped", "badge-danger"),
-            7: ("Canceled", "badge-danger"),
-            8: ("Aborted", "badge-danger"),
-            9: ("Completed", "badge-success")
-        }
-        completed_jobs = []
-        for job_id, attrs in jobs.items():
-            logger.debug(f"Dashboard job {job_id} attributes: {attrs}")
-            if attrs.get("job-state", 0) == 9:  # Completed
-                state_text, badge_class = job_states.get(9)
-                # Извлекаем имя принтера из job-printer-uri или destination
-                printer_name = attrs.get("job-printer-name", "Unknown")
-                if printer_name == "Unknown" and attrs.get("job-printer-uri"):
-                    uri_parts = attrs.get("job-printer-uri", "").split("/")
-                    if len(uri_parts) > 3:
-                        printer_name = uri_parts[-1] or "Unknown"
-                elif printer_name == "Unknown" and attrs.get("destination"):
-                    printer_name = attrs.get("destination", "Unknown")
+        # Получение принтеров
+        logger.debug("Получение списка принтеров для дашборда")
+        printers = conn.getPrinters()
+        logger.debug(f"Получено {len(printers)} принтеров")
+        
+        data['printer_count'] = len(printers)
+        data['active_printers'] = sum(1 for p in printers.values() if p.get('printer-state') == 3)
+        data['error_printers'] = sum(1 for p in printers.values() if p.get('printer-state') == 5)
+        
+        # Получение заданий
+        try:
+            logger.debug("Получение последних завершённых заданий")
+            jobs = conn.getJobs(
+                which_jobs='completed',
+                my_jobs=False,
+                requested_attributes=[
+                    'job-id', 'job-name', 'job-state', 'job-printer-name',
+                    'job-originating-user-name', 'job-k-octets', 'time-at-creation',
+                    'job-state-reasons', 'job-printer-uri'
+                ]
+            )
+            logger.debug(f"Получено {len(jobs)} завершённых заданий: {jobs}")
+            
+            completed_jobs = []
+            for job_id, job_info in jobs.items():
+                # Логируем все атрибуты задания
+                logger.debug(f"Атрибуты задания {job_id}: {job_info}")
+                
+                state = job_info.get('job-state', 0)
+                state_text = 'Unknown'
+                badge_class = 'badge-info'
+                if state in [3, 4, 5, 6, 7, 8, 9]:
+                    state_map = {
+                        3: ('Pending', 'badge-warning'),  # Жёлтый для Pending
+                        4: ('Held', ''),
+                        5: ('Processing', 'badge-success'),
+                        6: ('Stopped', 'badge-danger'),
+                        7: ('Canceled', ''),
+                        8: ('Aborted', 'badge-danger'),
+                        9: ('Completed', 'badge-success')
+                    }
+                    state_text, badge_class = state_map[state]
+                
+                time_at_creation = job_info.get('time-at-creation', 0)
+                time_str = 'Unknown'
+                if time_at_creation > 0:
+                    time_str = datetime.fromtimestamp(time_at_creation).strftime('%Y-%m-%d %H:%M:%S')
+                
+                # Извлечение имени принтера из job-printer-uri, если job-printer-name отсутствует
+                printer_name = job_info.get('job-printer-name', extract_printer_name(job_info.get('job-printer-uri')))
                 
                 completed_jobs.append({
-                    "id": job_id,
-                    "name": attrs.get("job-name", f"Job {job_id}"),
-                    "printer": printer_name,
-                    "user": attrs.get("job-originating-user-name", "Unknown"),
-                    "state": state_text,
-                    "badge_class": badge_class,
-                    "size": attrs.get("job-k-octets", 0),
-                    "time": datetime.fromtimestamp(
-                        attrs.get("time-at-creation", 0)
-                    ).strftime("%Y-%m-%d %H:%M:%S") if attrs.get("time-at-creation", 0) > 0 else "Unknown"
+                    'id': job_id,
+                    'name': job_info.get('job-name', 'Unknown'),
+                    'printer': printer_name,
+                    'user': job_info.get('job-originating-user-name', 'Unknown'),
+                    'state': state_text,
+                    'badge_class': badge_class,
+                    'size': job_info.get('job-k-octets', 0),
+                    'time': time_str,
+                    'creation_time': time_at_creation
                 })
-        completed_jobs = sorted(completed_jobs, key=lambda x: x["id"], reverse=True)[:10]  # Последние 10
+            
+            # Сортировка по времени создания (от новых к старым)
+            completed_jobs.sort(key=lambda x: x['creation_time'], reverse=True)
+            data['completed_jobs'] = completed_jobs[:5]
+            logger.debug(f"Подготовлено {len(data['completed_jobs'])} завершённых заданий для отображения")
+            
+        except Exception as e:
+            logger.error(f"Ошибка при получении заданий: {str(e)}")
+            data['error'] = f"Ошибка получения заданий: {str(e)}"
         
-        logger.info(f"Dashboard loaded: {printer_count} printers, {active_printers} active, {error_printers} error, {len(completed_jobs)} completed jobs")
-        return render_template("dashboard.html", printer_count=printer_count, active_printers=active_printers, error_printers=error_printers, completed_jobs=completed_jobs, server_ip=CUPS_SERVER)
-    except Exception as e:
-        logger.error(f"Error loading dashboard: {e}")
-        return render_template("dashboard.html", error=str(e), printer_count=0, active_printers=0, error_printers=0, completed_jobs=[], server_ip=CUPS_SERVER)
-
-@app.route("/printers")
-@login_required
-def printers():
-    conn = get_connection(session['username'], session['password'])
-    if not conn:
-        return render_template("printers.html", printers=[], error="Cannot connect to CUPS server")
+        logger.info("Рендеринг дашборда")
+        return render_template('dashboard.html', **data)
     
-    try:
-        printers = conn.getPrinters()
-        classes = conn.getClasses()
-        printer_list = [
-            {
-                "name": name,
-                "uri": attrs.get("device-uri", ""),
-                "state": attrs.get("printer-state-message", ""),
-                "type": "class" if name in classes else "printer",
-                "health": get_printer_health(attrs)
-            }
-            for name, attrs in printers.items()
-        ]
-        logger.info(f"Retrieved {len(printer_list)} printers/classes")
-        return render_template("printers.html", printers=printer_list)
     except Exception as e:
-        logger.error(f"Error getting printers: {e}")
-        return render_template("printers.html", printers=[], error=str(e))
+        logger.error(f"Ошибка в /dashboard: {str(e)}")
+        data['error'] = str(e)
+        return render_template('dashboard.html', **data), 500
 
-@app.route("/jobs")
-@login_required
+@app.route('/jobs')
+@require_auth
 def jobs():
-    conn = get_connection(session['username'], session['password'])
-    if not conn:
-        logger.error("Cannot connect to CUPS server")
-        return render_template("jobs.html", jobs=[], error="Cannot connect to CUPS server")
-    
+    filter_type = request.args.get('filter', 'all')
+    logger.info(f"Обработка /jobs с фильтром: {filter_type}")
+
     try:
-        filter_type = request.args.get("filter", "all")
-        requested_attributes = [
-            "job-id", "job-name", "job-printer-name", "job-originating-user-name",
-            "job-state", "job-k-octets", "time-at-creation", "job-printer-uri",
-            "destination"
-        ]
-        jobs = conn.getJobs(which_jobs="all", requested_attributes=requested_attributes)
-        logger.debug(f"Raw jobs: {jobs}")
+        conn = create_cups_connection()
+        logger.debug("Получение всех заданий")
+        try:
+            jobs = conn.getJobs(
+                which_jobs='all',
+                my_jobs=False,
+                requested_attributes=[
+                    'job-id', 'job-name', 'job-state', 'job-printer-name',
+                    'job-originating-user-name', 'job-k-octets', 'time-at-creation',
+                    'job-state-reasons', 'job-printer-uri'
+                ]
+            )
+            logger.debug(f"Получено {len(jobs)} заданий: {jobs}")
+        except Exception as e:
+            logger.error(f"Ошибка при вызове getJobs: {str(e)}")
+            return render_template('jobs.html', error=f"Ошибка получения заданий: {str(e)}"), 500
+
         job_list = []
-        job_states = {
-            3: ("Pending", "badge-warning"),
-            4: ("Held", "badge-warning"),
-            5: ("Processing", "badge-warning"),
-            6: ("Stopped", "badge-danger"),
-            7: ("Canceled", "badge-danger"),
-            8: ("Aborted", "badge-danger"),
-            9: ("Completed", "badge-success")
+        state_map = {
+            3: ('Pending', 'badge-warning'),  # Жёлтый для Pending
+            4: ('Held', ''),
+            5: ('Processing', 'badge-success'),
+            6: ('Stopped', 'badge-danger'),
+            7: ('Canceled', ''),
+            8: ('Aborted', 'badge-danger'),
+            9: ('Completed', 'badge-success')
         }
-        
-        for job_id, attrs in jobs.items():
-            logger.debug(f"Job {job_id} attributes: {attrs}")
-            state = attrs.get("job-state", 0)
-            if filter_type == "active" and state not in [3, 4, 5]:
-                continue
-            if filter_type == "completed" and state != 9:
-                continue
-            state_text, badge_class = job_states.get(state, ("Unknown", "badge-danger"))
-            # Извлекаем имя принтера из job-printer-uri или destination
-            printer_name = attrs.get("job-printer-name", "Unknown")
-            if printer_name == "Unknown" and attrs.get("job-printer-uri"):
-                uri_parts = attrs.get("job-printer-uri", "").split("/")
-                if len(uri_parts) > 3:
-                    printer_name = uri_parts[-1] or "Unknown"
-            elif printer_name == "Unknown" and attrs.get("destination"):
-                printer_name = attrs.get("destination", "Unknown")
+
+        for job_id, job_info in jobs.items():
+            # Логируем все атрибуты задания для диагностики
+            logger.debug(f"Атрибуты задания {job_id}: {job_info}")
             
+            state = job_info.get('job-state', 0)
+            state_text = 'Unknown'
+            badge_class = 'badge-info'
+            
+            if state in state_map:
+                state_text, badge_class = state_map[state]
+            else:
+                logger.warning(f"Неизвестное состояние задания {state} для задания {job_id}")
+
+            # Обработка времени создания
+            time_at_creation = job_info.get('time-at-creation', 0)
+            time_str = 'Unknown'
+            if time_at_creation > 0:
+                time_str = datetime.fromtimestamp(time_at_creation).strftime('%Y-%m-%d %H:%M:%S')
+
+            # Извлечение имени принтера из job-printer-uri, если job-printer-name отсутствует
+            printer_name = job_info.get('job-printer-name', extract_printer_name(job_info.get('job-printer-uri')))
+
+            # Применяем фильтры
+            if filter_type == 'active' and state not in [3, 4, 5]:
+                continue
+            if filter_type == 'completed' and state != 9:
+                continue
+
             job_list.append({
-                "id": job_id,
-                "name": attrs.get("job-name", f"Job {job_id}"),
-                "printer": printer_name,
-                "user": attrs.get("job-originating-user-name", "Unknown"),
-                "state": state_text,
-                "badge_class": badge_class,
-                "size": attrs.get("job-k-octets", 0),
-                "time": datetime.fromtimestamp(
-                    attrs.get("time-at-creation", 0)
-                ).strftime("%Y-%m-%d %H:%M:%S") if attrs.get("time-at-creation", 0) > 0 else "Unknown"
+                'id': job_id,
+                'name': job_info.get('job-name', 'Unknown'),
+                'printer': printer_name,
+                'user': job_info.get('job-originating-user-name', 'Unknown'),
+                'state': state_text,
+                'badge_class': badge_class,
+                'size': job_info.get('job-k-octets', 0),
+                'time': time_str,
+                'creation_time': time_at_creation
             })
-        job_list = sorted(job_list, key=lambda x: x["id"], reverse=True)[:50]  # Ограничим 50 заданиями
-        logger.info(f"Retrieved {len(job_list)} print jobs (filter: {filter_type})")
-        return render_template("jobs.html", jobs=job_list, filter=filter_type)
-    except Exception as e:
-        logger.error(f"Error getting jobs: {e}")
-        return render_template("jobs.html", jobs=[], error=f"Error retrieving jobs: {str(e)}", filter=filter_type)
 
-@app.route("/printer-detail/<name>")
-@login_required
-def printer_detail(name):
-    conn = get_connection(session['username'], session['password'])
-    if not conn:
-        return render_template("printer.html", error="Cannot connect to CUPS server")
-    
-    try:
-        printers = conn.getPrinters()
-        classes = conn.getClasses()
-        is_class = name in classes
-        
-        if name not in printers and not is_class:
-            logger.warning(f"Object {name} not found")
-            return render_template("printer.html", error=f"Object {name} not found")
-        
-        attrs = printers.get(name, {})
-        ip = ""
-        if attrs.get('device-uri'):
-            parts = attrs["device-uri"].split("/")
-            if len(parts) > 2:
-                ip = parts[2].split(":")[0]
-        
-        printer = {
-            "name": name,
-            "type": "class" if is_class else "printer",
-            "description": attrs.get("printer-info", attrs.get("printer-state-message", "")),
-            "location": attrs.get("printer-location", ""),
-            "driver": attrs.get("printer-make-and-model", ""),
-            "connection": f"ipp://{ip}/ipp" if ip else attrs.get("device-uri", ""),
-            "defaults": "",
-            "members": classes.get(name, []) if is_class else [],
-            "state": attrs.get("printer-state-message", "Unknown"),
-            "health": get_printer_health(attrs)
-        }
-        
-        options = conn.getPrinterAttributes(name) if not is_class else {}
-        defaults = []
-        for key, value in options.items():
-            if key.startswith("job-") or key in ["media", "sides"]:
-                defaults.append(f"{key}={value}")
-        printer["defaults"] = ", ".join(defaults) if defaults else "none"
-        
-        logger.info(f"Retrieved details for {printer['type']} {name}")
-        return render_template("printer.html", printer=printer)
-    except Exception as e:
-        logger.error(f"Error getting details: {e}")
-        return render_template("printer.html", error=str(e))
+        # Сортировка по времени создания (от новых к старым)
+        job_list.sort(key=lambda x: x['creation_time'], reverse=True)
+        logger.info(f"Возвращено {len(job_list)} заданий для фильтра {filter_type}")
 
-@app.route("/add-printer", methods=["GET", "POST"])
-@login_required
-def add_printer():
-    conn = get_connection(session['username'], session['password'])
-    if not conn:
-        return render_template("add_printer.html", error="Cannot connect to CUPS server", printers=[])
-    
-    try:
-        printers = conn.getPrinters()
-        printer_names = list(printers.keys())
-    except Exception as e:
-        logger.error(f"Error getting printers for add-printer: {e}")
-        printer_names = []
-    
-    if request.method == "POST":
-        name = request.form.get("name")
-        is_class = request.form.get("is_class") == "true"
-        protocol = request.form.get("protocol") if not is_class else None
-        address = request.form.get("address") if not is_class else None
-        description = request.form.get("description", "")
-        location = request.form.get("location", "")
-        members = request.form.getlist("members") if is_class else []
-        
-        if not name:
-            return jsonify({"error": "Name is required"}), 400
-        if not is_class and not all([protocol, address]):
-            return jsonify({"error": "Protocol and address are required for printers"}), 400
-        
-        try:
-            if is_class:
-                logger.debug(f"Adding class {name} with members {members}")
-                conn.addPrinter(name, info=description, location=location)
-                for member in members:
-                    conn.addPrinterToClass(member, name)
-            else:
-                uri = f"{protocol}://{address}" if protocol != "socket" else f"socket://{address}"
-                logger.debug(f"Adding printer {name} with URI {uri}")
-                conn.addPrinter(
-                    name,
-                    device=uri,
-                    info=description,
-                    location=location,
-                    ppdname="everywhere"
-                )
-                conn.enablePrinter(name)
-                conn.acceptJobs(name)
-            
-            logger.info(f"{'Class' if is_class else 'Printer'} {name} added successfully")
-            return jsonify({"message": f"{'Class' if is_class else 'Printer'} {name} added"}), 200
-        except cups.IPPError as e:
-            logger.error(f"IPP Error adding {'class' if is_class else 'printer'}: {e}")
-            return jsonify({"error": f"IPP Error: {e}"}), 500
-        except Exception as e:
-            logger.error(f"Error adding {'class' if is_class else 'printer'}: {e}")
-            return jsonify({"error": str(e)}), 500
-    
-    return render_template("add_printer.html", printers=printer_names)
-
-@app.route("/modify-printer/<name>", methods=["GET", "POST"])
-@login_required
-def modify_printer(name):
-    conn = get_connection(session['username'], session['password'])
-    if not conn:
-        return render_template("modify_printer.html", error="Cannot connect to CUPS server", printer=None, printers=[])
-    
-    try:
-        printers = conn.getPrinters()
-        classes = conn.getClasses()
-        is_class = name in classes
-        printer_names = list(printers.keys())
-        
-        if name not in printers and not is_class:
-            logger.warning(f"Object {name} not found")
-            return render_template("modify_printer.html", error=f"Object {name} not found", printer=None, printers=printer_names)
-        
-        attrs = printers.get(name, {})
-        printer = {
-            "name": name,
-            "type": "class" if is_class else "printer",
-            "description": attrs.get("printer-info", ""),
-            "location": attrs.get("printer-location", ""),
-            "connection": attrs.get("device-uri", ""),
-            "members": classes.get(name, []) if is_class else []
-        }
-    except Exception as e:
-        logger.error(f"Error getting details for modify: {e}")
-        return render_template("modify_printer.html", error=str(e), printer=None, printers=printer_names)
-    
-    if request.method == "POST":
-        new_name = request.form.get("name")
-        description = request.form.get("description", "")
-        location = request.form.get("location", "")
-        protocol = request.form.get("protocol") if not is_class else None
-        address = request.form.get("address") if not is_class else None
-        members = request.form.getlist("members") if is_class else []
-        
-        if not new_name:
-            return jsonify({"error": "Name is required"}), 400
-        if not is_class and not all([protocol, address]):
-            return jsonify({"error": "Protocol and address are required for printers"}), 400
-        
-        try:
-            if is_class:
-                logger.debug(f"Modifying class {name} to {new_name} with members {members}")
-                conn.deletePrinter(name)
-                conn.addPrinter(new_name, info=description, location=location)
-                for member in members:
-                    conn.addPrinterToClass(member, new_name)
-            else:
-                uri = f"{protocol}://{address}" if protocol != "socket" else f"socket://{address}"
-                logger.debug(f"Modifying printer {name} to {new_name} with URI {uri}")
-                conn.deletePrinter(name)
-                conn.addPrinter(
-                    new_name,
-                    device=uri,
-                    info=description,
-                    location=location,
-                    ppdname="everywhere"
-                )
-                conn.enablePrinter(new_name)
-                conn.acceptJobs(new_name)
-            
-            logger.info(f"{'Class' if is_class else 'Printer'} {new_name} modified successfully")
-            return jsonify({"message": f"{'Class' if is_class else 'Printer'} {new_name} modified"}), 200
-        except cups.IPPError as e:
-            logger.error(f"IPP Error modifying {'class' if is_class else 'printer'}: {e}")
-            return jsonify({"error": f"IPP Error: {e}"}), 500
-        except Exception as e:
-            logger.error(f"Error modifying {'class' if is_class else 'printer'}: {e}")
-            return jsonify({"error": str(e)}), 500
-    
-    return render_template("modify_printer.html", printer=printer, printers=printer_names)
-
-@app.route("/printers/<name>/pause", methods=["POST"])
-@login_required
-def pause_printer(name):
-    conn = get_connection(session['username'], session['password'])
-    if not conn:
-        return jsonify({"error": "Cannot connect to CUPS server"}), 500
-    
-    try:
-        conn.disablePrinter(name)
-        logger.info(f"Printer/class {name} paused")
-        return jsonify({"message": f"Printer/class {name} paused"}), 200
-    except cups.IPPError as e:
-        logger.error(f"IPP Error pausing {name}: {e}")
-        return jsonify({"error": f"IPP Error: {e}"}), 500
-    except Exception as e:
-        logger.error(f"Error pausing {name}: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/printers/<name>/resume", methods=["POST"])
-@login_required
-def resume_printer(name):
-    conn = get_connection(session['username'], session['password'])
-    if not conn:
-        return jsonify({"error": "Cannot connect to CUPS server"}), 500
-    
-    try:
-        conn.enablePrinter(name)
-        conn.acceptJobs(name)
-        logger.info(f"Printer/class {name} resumed")
-        return jsonify({"message": f"Printer/class {name} resumed"}), 200
-    except cups.IPPError as e:
-        logger.error(f"IPP Error resuming {name}: {e}")
-        return jsonify({"error": f"IPP Error: {e}"}), 500
-    except Exception as e:
-        logger.error(f"Error resuming {name}: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/printers/<name>/delete", methods=["POST"])
-@login_required
-def delete_printer(name):
-    conn = get_connection(session['username'], session['password'])
-    if not conn:
-        return jsonify({"error": "Cannot connect to CUPS server"}), 500
-    
-    try:
-        is_class = is_printer_class(conn, name)
-        conn.deletePrinter(name)
-        
-        target = conn.getClasses() if is_class else conn.getPrinters()
-        if name not in target:
-            logger.info(f"{'Class' if is_class else 'Printer'} {name} deleted successfully")
-            return jsonify({"message": f"{'Class' if is_class else 'Printer'} {name} deleted"}), 200
+        if request.args.get('filter'):
+            return jsonify({'jobs': job_list})
         else:
-            logger.error(f"Failed to delete {'class' if is_class else 'printer'} {name}")
-            return jsonify({"error": f"Failed to delete {'class' if is_class else 'printer'} {name}"}), 500
-    except cups.IPPError as e:
-        logger.error(f"IPP Error deleting {name}: {e}")
-        return jsonify({"error": f"IPP Error: {e}"}), 500
+            return render_template('jobs.html', jobs=job_list, filter=filter_type)
     except Exception as e:
-        logger.error(f"Error deleting {name}: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Ошибка в /jobs: {str(e)}")
+        return render_template('jobs.html', error=str(e)), 500
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+@app.route('/printers')
+@require_auth
+def printers():
+    try:
+        conn = create_cups_connection()
+        printers = conn.getPrinters()
+        logger.debug(f"Получено {len(printers)} принтеров")
+
+        printer_list = []
+        for name, info in printers.items():
+            # Логируем состояние принтера
+            logger.debug(f"Принтер {name}: printer-state={info.get('printer-state')}")
+            
+            health = {'status': 'Unknown', 'badge': ''}
+            state = info.get('printer-state')
+            if state == 3:
+                health = {'status': 'Ready', 'badge': 'badge-success'}
+            elif state == 4:
+                health = {'status': 'Processing', 'badge': 'badge-warning'}
+            elif state == 5:
+                health = {'status': 'Stopped', 'badge': 'badge-danger'}
+
+            printer_list.append({
+                'name': name,
+                'type': 'printer' if not info.get('printer-is-class', False) else 'class',
+                'state': {3: 'Ready', 4: 'Processing', 5: 'Stopped'}.get(state, 'Unknown'),
+                'health': health,
+                'uri': info.get('device-uri', 'Unknown')
+            })
+
+        logger.info("Рендеринг страницы принтеров")
+        return render_template('printers.html', printers=printer_list)
+    except Exception as e:
+        logger.error(f"Ошибка в /printers: {str(e)}")
+        return render_template('printers.html', error=str(e)), 500
+
+@app.route('/add-printer', methods=['GET', 'POST'])
+@require_auth
+def add_printer():
+    if request.method == 'POST':
+        printer_name = request.form.get('printer-name')
+        printer_type = request.form.get('printer-type')
+        printer_uri = request.form.get('printer-uri')
+
+        logger.debug(f"Попытка добавить принтер: name={printer_name}, type={printer_type}, uri={printer_uri}")
+
+        if not all([printer_name, printer_type, printer_uri]):
+            logger.warning("Неполные данные формы добавления принтера")
+            return render_template('add_printer.html', error='Заполните все поля'), 400
+
+        try:
+            conn = create_cups_connection()
+            if printer_type == 'printer':
+                conn.addPrinter(name=printer_name, device=printer_uri)
+                conn.enablePrinter(printer_name)
+                conn.acceptJobs(printer_name)
+            else:  # class
+                conn.createClass(printer_name, [printer_name])
+            logger.info(f"Добавлен {printer_type} {printer_name} с URI {printer_uri}")
+            return redirect(url_for('printers'))
+        except Exception as e:
+            logger.error(f"Ошибка добавления принтера {printer_name}: {str(e)}")
+            return render_template('add_printer.html', error=str(e)), 500
+
+    return render_template('add_printer.html')
+
+@app.route('/printer-detail/<name>')
+@require_auth
+def printer_detail(name):
+    try:
+        conn = create_cups_connection()
+        printers = conn.getPrinters()
+        logger.debug(f"Получено {len(printers)} принтеров")
+
+        if name not in printers:
+            logger.error(f"Принтер {name} не найден")
+            return render_template('printer.html', printer=None, error='Принтер не найден'), 404
+
+        printer = printers[name]
+        uri = printer.get('device-uri', 'Unknown')
+        logger.debug(f"URI принтера {name}: {uri}")
+
+        # Извлечение IP
+        ip_address = 'Unknown'
+        hostname_match = re.search(r'://([^:/]+)(?::\d+)?/', uri)
+        if hostname_match:
+            hostname = hostname_match.group(1)
+            try:
+                ip_address = socket.gethostbyname(hostname)
+                logger.debug(f"Разрешено {hostname} в {ip_address}")
+            except socket.gaierror:
+                logger.warning(f"Не удалось разрешить хост {hostname}")
+                ip_address = hostname
+
+        # Здоровье принтера
+        state = printer.get('printer-state')
+        logger.debug(f"Принтер {name}: printer-state={state}")
+        health = {'status': 'Unknown', 'badge': ''}
+        if state == 3:
+            health = {'status': 'Ready', 'badge': 'badge-success'}
+        elif state == 4:
+            health = {'status': 'Processing', 'badge': 'badge-warning'}
+        elif state == 5:
+            health = {'status': 'Stopped', 'badge': 'badge-danger'}
+
+        printer_data = {
+            'name': name,
+            'type': 'printer' if not printer.get('printer-is-class', False) else 'class',
+            'state': {3: 'Ready', 4: 'Processing', 5: 'Stopped'}.get(state, 'Unknown'),
+            'health': health,
+            'uri': uri,
+            'ip_address': ip_address
+        }
+
+        logger.info(f"Рендеринг деталей принтера {name}")
+        return render_template('printer.html', printer=printer_data)
+    except Exception as e:
+        logger.error(f"Ошибка в /printer-detail/{name}: {str(e)}")
+        return render_template('printer.html', printer=None, error=str(e)), 500
+
+@app.route('/modify-printer/<name>', methods=['GET', 'POST'])
+@require_auth
+def modify_printer(name):
+    try:
+        conn = create_cups_connection()
+        printers = conn.getPrinters()
+        if name not in printers:
+            logger.error(f"Принтер {name} не найден для изменения")
+            return render_template('printer.html', printer=None, error='Принтер не найден'), 404
+
+        if request.method == 'POST':
+            new_name = request.form.get('printer-name')
+            printer_type = request.form.get('printer-type')
+            printer_uri = request.form.get('printer-uri')
+
+            logger.debug(f"Попытка изменить принтер: old_name={name}, new_name={new_name}, type={printer_type}, uri={printer_uri}")
+
+            if not all([new_name, printer_type, printer_uri]):
+                logger.warning("Неполные данные формы изменения принтера")
+                printer_data = {
+                    'name': name,
+                    'type': 'printer' if not printers[name].get('printer-is-class', False) else 'class',
+                    'uri': printers[name].get('device-uri', 'Unknown')
+                }
+                return render_template('modify_printer.html', printer=printer_data, error='Заполните все поля'), 400
+
+            try:
+                if printer_type == 'printer':
+                    conn.addPrinter(name=new_name, device=printer_uri)
+                    conn.enablePrinter(new_name)
+                    conn.acceptJobs(new_name)
+                else:
+                    conn.createClass(new_name, [new_name])
+                if new_name != name:
+                    conn.deletePrinter(name)
+                logger.info(f"Изменен принтер {name} на {new_name}")
+                return redirect(url_for('printer_detail', name=new_name))
+            except Exception as e:
+                logger.error(f"Ошибка изменения принтера {name}: {str(e)}")
+                printer_data = {
+                    'name': name,
+                    'type': 'printer' if not printers[name].get('printer-is-class', False) else 'class',
+                    'uri': printers[name].get('device-uri', 'Unknown')
+                }
+                return render_template('modify_printer.html', printer=printer_data, error=str(e)), 500
+
+        printer_data = {
+            'name': name,
+            'type': 'printer' if not printers[name].get('printer-is-class', False) else 'class',
+            'uri': printers[name].get('device-uri', 'Unknown')
+        }
+        return render_template('modify_printer.html', printer=printer_data)
+    except Exception as e:
+        logger.error(f"Ошибка в /modify-printer/{name}: {str(e)}")
+        return render_template('printer.html', printer=None, error=str(e)), 500
+
+@app.route('/delete-printer/<name>', methods=['POST'])
+@require_auth
+def delete_printer(name):
+    try:
+        conn = create_cups_connection()
+        printers = conn.getPrinters()
+        if name not in printers:
+            logger.error(f"Принтер {name} не найден для удаления")
+            return redirect(url_for('printers'))
+
+        conn.deletePrinter(name)
+        logger.info(f"Удален принтер {name}")
+        return redirect(url_for('printers'))
+    except Exception as e:
+        logger.error(f"Ошибка удаления принтера {name}: {str(e)}")
+        return render_template('printers.html', error=str(e)), 500
+
+if __name__ == '__main__':
+    logger.info("Запуск Flask-приложения")
+    app.run(debug=True, host='0.0.0.0', port=8080)
