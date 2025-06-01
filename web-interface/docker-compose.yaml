@@ -1,0 +1,8 @@
+services:
+  print-manager:
+    build: .
+    ports:
+      - "8088:8088"
+    env_file:
+      - .env
+    network_mode: host
